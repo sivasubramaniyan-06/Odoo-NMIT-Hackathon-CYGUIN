@@ -39,11 +39,19 @@ export default function EmployeeSignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!fullName || !email || !password || !confirmPassword || !phone) {
-      toast({ title: "Validation Error", description: "Please fill in all fields", variant: "error" });
+    // Validations
+    if (!fullName) {
+      toast({ title: "Validation Error", description: "Full Name is required", variant: "error" });
       return;
     }
-
+    if (!email) {
+      toast({ title: "Validation Error", description: "Email is required", variant: "error" });
+      return;
+    }
+    if (password.length < 8) {
+      toast({ title: "Validation Error", description: "Password must be at least 8 characters", variant: "error" });
+      return;
+    }
     if (password !== confirmPassword) {
       toast({ title: "Validation Error", description: "Passwords do not match", variant: "error" });
       return;
@@ -59,12 +67,9 @@ export default function EmployeeSignUpPage() {
         options: {
           data: {
             full_name: fullName,
-            role: "employee",
-            phone,
-            department,
-            avatar_url: photoPreview,
-          },
-        },
+            role: "employee"
+          }
+        }
       });
 
       if (authError) {
@@ -73,43 +78,45 @@ export default function EmployeeSignUpPage() {
         return;
       }
 
-      // 2. Insert profile record into the database employees directory
-      const employeePayload = {
-        name: fullName,
-        email: email,
-        phone: phone,
-        dept: department,
-        role: "Associate",
-        status: "ACTIVE"
-      };
+      const user = authData?.user;
+      if (user) {
+        // Check whether a profile already exists to prevent duplicate profiles
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
 
-      const res = await fetch("/api/employees", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(employeePayload),
-      });
+        if (!existingProfile) {
+          // Create ONE record in the profiles table
+          const { error: profileError } = await supabase.from("profiles").insert({
+            id: user.id,
+            full_name: fullName,
+            email: email,
+            role: "employee",
+            phone: phone || null,
+            department: department || null,
+            avatar_url: photoPreview || null
+          });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.warn("Could not insert employee profile record:", errorData.error);
-        // Continue anyway since Auth account was created successfully
+          if (profileError) {
+            console.error("Profiles insertion failed:", profileError.message);
+          }
+        }
       }
 
       toast({
-        title: "Account Created Successfully",
-        description: "Your employee account has been created. Please sign in.",
-        variant: "success",
+        title: "Account created successfully.",
+        description: "Please sign in.",
+        variant: "success"
       });
 
-      // Redirect to employee login
       router.push("/login/employee");
     } catch (err: any) {
       toast({
         title: "Error",
         description: err.message || "An unexpected error occurred during signup",
-        variant: "error",
+        variant: "error"
       });
     } finally {
       setLoading(false);

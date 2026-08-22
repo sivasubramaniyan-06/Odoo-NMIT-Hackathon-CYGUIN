@@ -20,18 +20,65 @@ export function LoginForm({ role }: { role: "admin" | "employee" }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const getFriendlyErrorMessage = (error: any): string => {
+    const message = error.message || "";
+    const status = error.status;
+
+    if (message.includes("Invalid login credentials") || message.includes("Invalid credentials")) {
+      return "Incorrect password or email address.";
+    }
+    if (message.includes("Email not confirmed")) {
+      return "Email not verified. Please check your inbox.";
+    }
+    if (message.includes("Email structure") || message.includes("invalid email")) {
+      return "Invalid email address format.";
+    }
+    if (message.includes("Network") || status === 0) {
+      return "Network error. Please check your connection and try again.";
+    }
+    return message || "An unexpected error occurred.";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
 
     setLoading(true);
+
+    if (role === "admin") {
+      // Admin Authentication with fixed credentials: admin / admin@123
+      if (email.trim() === "admin" && password === "admin@123") {
+        // Set local admin session cookie
+        document.cookie = "sb-admin-token=admin-logged-in; path=/; max-age=86400; SameSite=Lax";
+        
+        toast({
+          title: "Welcome Admin",
+          description: "Login successful. Redirecting to Admin Dashboard...",
+          variant: "success",
+        });
+
+        // Trigger reload/redirect to Admin Dashboard
+        setTimeout(() => {
+          window.location.href = "/admin/dashboard";
+        }, 500);
+      } else {
+        toast({
+          title: "Authentication Failed",
+          description: "Invalid admin credentials.",
+          variant: "error",
+        });
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       const { data, error } = await login(email, password);
 
       if (error) {
         toast({
           title: "Authentication Failed",
-          description: error.message,
+          description: getFriendlyErrorMessage(error),
           variant: "error",
         });
       } else {
@@ -46,13 +93,13 @@ export function LoginForm({ role }: { role: "admin" | "employee" }) {
         if (next) {
           router.push(next);
         } else {
-          router.push(role === "admin" ? "/admin/dashboard" : "/employee/dashboard");
+          router.push("/employee/dashboard");
         }
       }
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err.message || "An unexpected error occurred",
+        description: getFriendlyErrorMessage(err),
         variant: "error",
       });
     } finally {
@@ -77,13 +124,13 @@ export function LoginForm({ role }: { role: "admin" | "employee" }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-              Work Email
+              {role === "admin" ? "Username" : "Work Email"}
             </label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
               <Input
-                type="email"
-                placeholder="name@company.com"
+                type={role === "admin" ? "text" : "email"}
+                placeholder={role === "admin" ? "admin" : "name@company.com"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10"
@@ -97,13 +144,15 @@ export function LoginForm({ role }: { role: "admin" | "employee" }) {
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                 Password
               </label>
-              <button
-                type="button"
-                onClick={() => router.push(`/forgot-password?role=${role}`)}
-                className="text-[10px] font-semibold text-primary hover:underline"
-              >
-                Forgot Password?
-              </button>
+              {role === "employee" && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/forgot-password?role=${role}`)}
+                  className="text-[10px] font-semibold text-primary hover:underline"
+                >
+                  Forgot Password?
+                </button>
+              )}
             </div>
             <div className="relative">
               <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
