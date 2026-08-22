@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useParams, notFound } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +12,7 @@ import {
   GraduationCap, Award, CreditCard, Download, Edit,
 } from "lucide-react";
 import Link from "next/link";
+import { EMPLOYEES } from "../page";
 
 const TABS = [
   { label: "Overview", value: "overview" },
@@ -20,29 +22,45 @@ const TABS = [
 ];
 
 const skills = ["React", "TypeScript", "Figma", "System Design", "Team Leadership", "CSS / Tailwind"];
-const timeline = [
-  { date: "Mar 2024", event: "Joined Acme Corp as Senior UI Designer", type: "join" },
-  { date: "Jun 2024", event: "Completed Q1 Performance Review — Outstanding (4.8/5)", type: "review" },
-  { date: "Aug 2024", event: "Promoted to Lead Designer", type: "promotion" },
-  { date: "Jan 2025", event: "Annual salary revised to $110,000", type: "salary" },
-  { date: "Jun 2025", event: "Completed Q2 Performance Review — Outstanding (4.9/5)", type: "review" },
-];
 
-export default function EmployeeDetailPage({ params }: { params: { id: string } }) {
+const statusVariant: Record<string, "success" | "warning" | "danger" | "secondary"> = {
+  Active: "success",
+  "On Leave": "warning",
+  Inactive: "danger",
+};
+
+export default function EmployeeDetailPage() {
+  const routeParams = useParams();
+  const rawId = (routeParams?.id as string) || "";
+
+  const employee = EMPLOYEES.find((e) => e.id.toLowerCase() === rawId.toLowerCase());
+
   const [tab, setTab] = useState("overview");
+
+  if (!employee) {
+    notFound();
+  }
+
+  const timeline = [
+    { date: employee.joined, event: `Joined Acme Corp as ${employee.role}`, type: "join" },
+    { date: "Jun 2024", event: "Completed Q1 Performance Review — Outstanding (4.8/5)", type: "review" },
+    { date: "Aug 2024", event: `Promoted / Confirmed in ${employee.dept}`, type: "promotion" },
+    { date: "Jan 2025", event: "Annual salary revised & updated in records", type: "salary" },
+    { date: "Jun 2025", event: "Completed Q2 Performance Review — Outstanding (4.9/5)", type: "review" },
+  ];
 
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Back + Header */}
       <div className="flex items-center gap-3">
         <Link href="/admin/employees">
-          <button className="p-2 rounded-lg border border-border hover:bg-slate-50 cursor-pointer transition-colors">
+          <button className="p-2 rounded-lg border border-border hover:bg-slate-50 cursor-pointer transition-colors" aria-label="Back to employee directory">
             <ArrowLeft className="h-4 w-4 text-slate-600" />
           </button>
         </Link>
         <div>
           <h1 className="text-xl font-bold text-slate-900">Employee Profile</h1>
-          <p className="text-xs text-slate-500">ID: {params.id}</p>
+          <p className="text-xs text-slate-500">ID: {employee.id}</p>
         </div>
       </div>
 
@@ -53,14 +71,14 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 -mt-10">
             <div className="flex items-end gap-4">
               <div className="h-20 w-20 rounded-2xl bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white text-2xl font-extrabold shadow-lg border-4 border-card">
-                AR
+                {employee.avatar}
               </div>
               <div className="mb-1">
-                <h2 className="text-xl font-bold text-slate-900">Alex Rivera</h2>
-                <p className="text-sm text-slate-500">Senior UI Designer · Product Design</p>
+                <h2 className="text-xl font-bold text-slate-900">{employee.name}</h2>
+                <p className="text-sm text-slate-500">{employee.role} · {employee.dept}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="success">Active</Badge>
-                  <span className="text-xs text-slate-400">EMP-009</span>
+                  <Badge variant={statusVariant[employee.status] ?? "secondary"}>{employee.status}</Badge>
+                  <span className="text-xs text-slate-400">{employee.id}</span>
                 </div>
               </div>
             </div>
@@ -76,11 +94,11 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
 
           {/* Contact Row */}
           <div className="flex flex-wrap gap-4 mt-5 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />alex@acme.com</span>
-            <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />+1 555-0109</span>
-            <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />San Francisco, CA</span>
-            <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />Joined March 1, 2024</span>
-            <span className="flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5" />Reports to: Jane Cooper (VP Design)</span>
+            <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{employee.email}</span>
+            <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{employee.phone}</span>
+            <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{employee.location}</span>
+            <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />Joined {employee.joined}</span>
+            <span className="flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5" />Department: {employee.dept}</span>
           </div>
         </div>
       </Card>
@@ -98,12 +116,12 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
               <CardContent>
                 <dl className="grid grid-cols-2 gap-4 text-xs">
                   {[
-                    ["Date of Birth", "April 12, 1992"],
-                    ["Gender", "Non-binary"],
-                    ["Nationality", "US Citizen"],
-                    ["Marital Status", "Single"],
-                    ["Personal Email", "alex.personal@gmail.com"],
-                    ["Emergency Contact", "Jordan Rivera (+1 555-9999)"],
+                    ["Full Name", employee.name],
+                    ["Work Email", employee.email],
+                    ["Phone Number", employee.phone],
+                    ["Location", employee.location],
+                    ["Status", employee.status],
+                    ["Joined Date", employee.joined],
                   ].map(([k, v]) => (
                     <div key={k}>
                       <dt className="font-semibold text-slate-400 uppercase tracking-wide text-[10px]">{k}</dt>
@@ -119,8 +137,8 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
               <CardHeader><CardTitle className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-slate-400" /> Education</CardTitle></CardHeader>
               <CardContent className="space-y-3 text-xs">
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <p className="font-bold text-slate-800">B.S. Interaction Design</p>
-                  <p className="text-slate-500 mt-0.5">Carnegie Mellon University · 2014</p>
+                  <p className="font-bold text-slate-800">B.S. Computer Science & Design</p>
+                  <p className="text-slate-500 mt-0.5">Carnegie Mellon University · 2018</p>
                 </div>
               </CardContent>
             </Card>
@@ -146,13 +164,13 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
               <CardHeader><CardTitle>Work Details</CardTitle></CardHeader>
               <CardContent className="space-y-3 text-xs">
                 {[
-                  ["Employee ID", "EMP-009"],
-                  ["Department", "Product Design"],
-                  ["Designation", "Senior UI Designer"],
+                  ["Employee ID", employee.id],
+                  ["Department", employee.dept],
+                  ["Designation", employee.role],
                   ["Employment Type", "Full-Time"],
-                  ["Work Location", "Hybrid — SF Office"],
-                  ["Reporting Manager", "Jane Cooper"],
-                  ["Team", "Platform UX"],
+                  ["Work Location", employee.location],
+                  ["Current Status", employee.status],
+                  ["Joined Date", employee.joined],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between border-b border-slate-50 pb-2 last:border-0 last:pb-0">
                     <span className="text-slate-400 font-medium">{k}</span>
@@ -185,9 +203,9 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
             <CardHeader><CardTitle>Current Goals</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {[
-                { title: "Complete design tokens migration", progress: 90 },
-                { title: "Achieve INP < 200ms optimization", progress: 45 },
-                { title: "Mentor 2 junior designers", progress: 100 },
+                { title: `Complete ${employee.dept} platform migration`, progress: 90 },
+                { title: "Optimize system performance & SLA", progress: 65 },
+                { title: "Mentor junior team members", progress: 100 },
               ].map((g) => (
                 <div key={g.title} className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
                   <p className="text-xs font-semibold text-slate-700">{g.title}</p>

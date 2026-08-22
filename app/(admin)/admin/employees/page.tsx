@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-const EMPLOYEES = [
+export const EMPLOYEES = [
   { id: "EMP-001", name: "Jordan Kim", role: "Lead Engineer", dept: "Engineering", status: "Active", email: "jordan@acme.com", phone: "+1 555-0101", location: "San Francisco", joined: "2022-03-15", avatar: "JK" },
   { id: "EMP-002", name: "Ana Patel", role: "Product Designer", dept: "Design", status: "Active", email: "ana@acme.com", phone: "+1 555-0102", location: "New York", joined: "2023-01-10", avatar: "AP" },
   { id: "EMP-003", name: "Chen Wei", role: "Sales Director", dept: "Sales", status: "Active", email: "chen@acme.com", phone: "+1 555-0103", location: "Chicago", joined: "2021-06-01", avatar: "CW" },
@@ -69,6 +69,18 @@ export default function AdminEmployeesPage() {
   const [newRole, setNewRole] = useState("");
   const [newDept, setNewDept] = useState("Engineering");
   const [newEmail, setNewEmail] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newLocation, setNewLocation] = useState("");
+  const [newStatus, setNewStatus] = useState("Active");
+
+  const [editingEmployee, setEditingEmployee] = useState<typeof EMPLOYEES[0] | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editDept, setEditDept] = useState("Engineering");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editStatus, setEditStatus] = useState("Active");
 
   const filtered = useMemo(() => {
     return employees.filter((e) => {
@@ -88,6 +100,54 @@ export default function AdminEmployeesPage() {
     toast({ title: "Employee removed", description: "The employee record has been deleted.", variant: "success" });
   };
 
+  const handleStartEdit = (emp: typeof EMPLOYEES[0]) => {
+    setEditingEmployee(emp);
+    setEditName(emp.name);
+    setEditRole(emp.role);
+    setEditDept(emp.dept);
+    setEditEmail(emp.email);
+    setEditPhone(emp.phone || "");
+    setEditLocation(emp.location || "");
+    setEditStatus(emp.status || "Active");
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEmployee || !editName || !editRole || !editEmail) return;
+
+    const updatedAvatar = editName
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+    setEmployees((prev) =>
+      prev.map((emp) =>
+        emp.id === editingEmployee.id
+          ? {
+              ...emp,
+              name: editName,
+              role: editRole,
+              dept: editDept,
+              email: editEmail,
+              phone: editPhone || emp.phone,
+              location: editLocation || emp.location,
+              status: editStatus,
+              avatar: updatedAvatar || emp.avatar,
+            }
+          : emp
+      )
+    );
+
+    setEditingEmployee(null);
+    toast({
+      title: "Employee updated successfully",
+      description: `${editName}'s details have been updated.`,
+      variant: "success",
+    });
+  };
+
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || !newRole || !newEmail) return;
@@ -96,16 +156,16 @@ export default function AdminEmployeesPage() {
       name: newName,
       role: newRole,
       dept: newDept,
-      status: "Active",
+      status: newStatus || "Active",
       email: newEmail,
-      phone: "+1 555-0000",
-      location: "Remote",
+      phone: newPhone || "+1 555-0000",
+      location: newLocation || "Remote",
       joined: new Date().toISOString().split("T")[0],
       avatar: newName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
     };
     setEmployees((prev) => [newEmp, ...prev]);
     setIsAddOpen(false);
-    setNewName(""); setNewRole(""); setNewEmail("");
+    setNewName(""); setNewRole(""); setNewEmail(""); setNewDept("Engineering"); setNewPhone(""); setNewLocation(""); setNewStatus("Active");
     toast({ title: "Employee added", description: `${newName} has been onboarded successfully.`, variant: "success" });
   };
 
@@ -195,11 +255,11 @@ export default function AdminEmployeesPage() {
                       <Badge variant={statusVariant[emp.status] ?? "secondary"}>{emp.status}</Badge>
                     </td>
                     <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <Link href={`/admin/employees/${emp.id}`}>
                           <button className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer transition-colors" aria-label="View"><Eye className="h-3.5 w-3.5" /></button>
                         </Link>
-                        <button className="p-1.5 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 cursor-pointer transition-colors" aria-label="Edit"><Edit className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => handleStartEdit(emp)} className="p-1.5 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 cursor-pointer transition-colors" aria-label="Edit"><Edit className="h-3.5 w-3.5" /></button>
                         <button onClick={() => setDeleteTarget(emp.id)} className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer transition-colors" aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </td>
@@ -235,7 +295,8 @@ export default function AdminEmployeesPage() {
                 <Link href={`/admin/employees/${emp.id}`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full cursor-pointer">View</Button>
                 </Link>
-                <button onClick={() => setDeleteTarget(emp.id)} className="p-2 rounded-lg border border-border text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 cursor-pointer transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                <button onClick={() => handleStartEdit(emp)} className="p-2 rounded-lg border border-border text-slate-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 cursor-pointer transition-colors" aria-label="Edit"><Edit className="h-3.5 w-3.5" /></button>
+                <button onClick={() => setDeleteTarget(emp.id)} className="p-2 rounded-lg border border-border text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 cursor-pointer transition-colors" aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
             </Card>
           ))}
@@ -266,10 +327,38 @@ export default function AdminEmployeesPage() {
           <Input label="Full Name" value={newName} onChange={(e) => setNewName(e.target.value)} required placeholder="e.g. Sarah Johnson" />
           <Input label="Job Title / Role" value={newRole} onChange={(e) => setNewRole(e.target.value)} required placeholder="e.g. Senior Engineer" />
           <Input label="Work Email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required placeholder="e.g. sarah@acme.com" />
-          <Select label="Department" options={DEPT_OPTIONS.filter((d) => d.value)} value={newDept} onChange={(e) => setNewDept(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Department" options={DEPT_OPTIONS.filter((d) => d.value)} value={newDept} onChange={(e) => setNewDept(e.target.value)} />
+            <Select label="Status" options={STATUS_OPTIONS.filter((s) => s.value)} value={newStatus} onChange={(e) => setNewStatus(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Phone Number" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="e.g. +1 555-0100" />
+            <Input label="Location" value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="e.g. San Francisco" />
+          </div>
           <div className="flex gap-3 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)} className="flex-1 cursor-pointer">Cancel</Button>
             <Button type="submit" className="flex-1 cursor-pointer">Add Employee</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Employee Modal */}
+      <Modal isOpen={editingEmployee !== null} onClose={() => setEditingEmployee(null)} title="Edit Employee Details">
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <Input label="Full Name" value={editName} onChange={(e) => setEditName(e.target.value)} required placeholder="e.g. Sarah Johnson" />
+          <Input label="Job Title / Role" value={editRole} onChange={(e) => setEditRole(e.target.value)} required placeholder="e.g. Senior Engineer" />
+          <Input label="Work Email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} required placeholder="e.g. sarah@acme.com" />
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Department" options={DEPT_OPTIONS.filter((d) => d.value)} value={editDept} onChange={(e) => setEditDept(e.target.value)} />
+            <Select label="Status" options={STATUS_OPTIONS.filter((s) => s.value)} value={editStatus} onChange={(e) => setEditStatus(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Phone Number" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="e.g. +1 555-0100" />
+            <Input label="Location" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} placeholder="e.g. San Francisco" />
+          </div>
+          <div className="flex gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => setEditingEmployee(null)} className="flex-1 cursor-pointer">Cancel</Button>
+            <Button type="submit" className="flex-1 cursor-pointer">Save Changes</Button>
           </div>
         </form>
       </Modal>
