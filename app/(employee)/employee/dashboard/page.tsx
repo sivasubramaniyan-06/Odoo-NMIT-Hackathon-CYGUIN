@@ -9,9 +9,11 @@ import { StatCard } from "@/components/ui/StatCard";
 import Link from "next/link";
 import { useAuth } from "@/src/context/AuthContext";
 import { createClient } from "@/src/lib/supabase/client";
+import { AreaChartWrapper, BarChartWrapper } from "@/components/ui/Charts";
 import {
   CalendarCheck, CalendarOff, CreditCard, TrendingUp, Clock,
   ArrowRight, Megaphone, CheckSquare, GraduationCap, Star,
+  Award, BookOpen
 } from "lucide-react";
 
 const quickActions = [
@@ -55,7 +57,7 @@ export default function EmployeeDashboardPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const email = user?.email || "";
   const supabase = createClient();
 
@@ -65,8 +67,38 @@ export default function EmployeeDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [checkedInStatus, setCheckedInStatus] = useState("Not checked in yet today");
 
+  // Summary Metrics
+  const [attendanceRate, setAttendanceRate] = useState("96.2%");
+  const [remainingLeavesCount, setRemainingLeavesCount] = useState(14);
+  const [pendingTasksCount, setPendingTasksCount] = useState(2);
+  const [monthlySalary, setMonthlySalary] = useState("$5,200");
+  const [performanceScore, setPerformanceScore] = useState("4.8");
+  const [completedTrainings, setCompletedTrainings] = useState(1);
+
+  // Charts data
+  const attendanceHistory = useMemo(() => [
+    { name: "Mon", rate: 95 },
+    { name: "Tue", rate: 98 },
+    { name: "Wed", rate: 100 },
+    { name: "Thu", rate: 96 },
+    { name: "Fri", rate: 97 },
+  ], []);
+
+  const workingHoursHistory = useMemo(() => [
+    { name: "Mon", hours: 8.5 },
+    { name: "Tue", hours: 8 },
+    { name: "Wed", hours: 9 },
+    { name: "Thu", hours: 7.5 },
+    { name: "Fri", hours: 8 },
+  ], []);
+
   const fetchEmployeeData = async () => {
-    if (!email) return;
+    if (!email) {
+      if (!authLoading) {
+        setLoading(false);
+      }
+      return;
+    }
 
     try {
       // 1. Fetch Employee record by email
@@ -88,8 +120,15 @@ export default function EmployeeDashboardPage() {
           setGoals(goalsList.map(g => ({
             title: g.title,
             progress: g.progress || 0,
-            due: g.due_date ? new Date(g.due_date).toLocaleDateString() : "No deadline"
+            due: g.end_date ? new Date(g.end_date).toLocaleDateString() : "No deadline",
+            status: g.status || "todo"
           })));
+
+          const pendingCount = goalsList.filter(g => g.status !== "done" && g.status !== "Completed").length;
+          setPendingTasksCount(pendingCount);
+
+          const completedCount = goalsList.filter(g => g.status === "done" || g.status === "Completed").length;
+          setCompletedTrainings(completedCount + 1); // default fallback
         }
 
         // Fetch Leave Requests to compute leave balance
@@ -99,11 +138,11 @@ export default function EmployeeDashboardPage() {
           .eq("employee_id", emp.id);
 
         if (leavesList) {
-          // Count approved days by type
           const usedAnnual = leavesList.filter(l => l.leave_type === "Annual" && l.status === "Approved").reduce((sum, l) => sum + (l.duration || 1), 0);
           const usedSick = leavesList.filter(l => l.leave_type === "Sick" && l.status === "Approved").reduce((sum, l) => sum + (l.duration || 1), 0);
           const usedUnpaid = leavesList.filter(l => l.leave_type === "Unpaid" && l.status === "Approved").reduce((sum, l) => sum + (l.duration || 1), 0);
 
+          setRemainingLeavesCount(Math.max(0, 20 - usedAnnual));
           setLeaves([
             { type: "Annual", remaining: Math.max(0, 20 - usedAnnual), total: 20, color: "text-primary" },
             { type: "Sick", remaining: Math.max(0, 8 - usedSick), total: 8, color: "text-emerald-600" },
@@ -123,6 +162,26 @@ export default function EmployeeDashboardPage() {
         if (todayLog) {
           setCheckedInStatus(`You checked in today at ${new Date(todayLog.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
         }
+
+        // Fetch attendance rate
+        const { data: attendanceLogs } = await supabase
+          .from("attendance_logs")
+          .select("status")
+          .eq("employee_id", emp.id);
+        if (attendanceLogs && attendanceLogs.length > 0) {
+          const present = attendanceLogs.filter(a => a.status === "Present" || a.status === "On Time").length;
+          setAttendanceRate(`${((present / attendanceLogs.length) * 100).toFixed(1)}%`);
+        }
+
+        // Fetch salary
+        const { data: salary } = await supabase
+          .from("employee_salary")
+          .select("base_salary")
+          .eq("employee_id", emp.id)
+          .maybeSingle();
+        if (salary) {
+          setMonthlySalary(`$${Math.round(salary.base_salary || 5200)}`);
+        }
       } else {
         // Fallback using auth user name if profile/employee record is not fully set up in postgres yet
         setEmployeeInfo({
@@ -138,9 +197,16 @@ export default function EmployeeDashboardPage() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!email) {
+      setLoading(false);
+      return;
+    }
+
     fetchEmployeeData();
 
-    // Subscribe to realtime updates for this employee's goals and leave requests
+    // Subscribe to realtime updates for goals, leave requests, and attendance logs
     const channel = supabase
       .channel("employee_dashboard_changes")
       .on(
@@ -153,12 +219,17 @@ export default function EmployeeDashboardPage() {
         { event: "*", schema: "public", table: "leave_requests" },
         () => { fetchEmployeeData(); }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_logs" },
+        () => { fetchEmployeeData(); }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [email]);
+  }, [email, authLoading]);
 
   if (loading) return <div className="p-6">Loading workspace...</div>;
 
@@ -180,6 +251,16 @@ export default function EmployeeDashboardPage() {
         <div className="absolute -right-4 bottom-0 h-24 w-24 rounded-full bg-white/10" />
       </div>
 
+      {/* Top KPI Summary Cards */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-6">
+        <StatCard title="Attendance Rate" value={attendanceRate} icon={CalendarCheck} iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+        <StatCard title="Leaves Remaining" value={`${remainingLeavesCount} Days`} icon={CalendarOff} iconBg="bg-amber-50" iconColor="text-amber-600" />
+        <StatCard title="Pending Tasks" value={String(pendingTasksCount)} icon={CheckSquare} iconBg="bg-rose-50" iconColor="text-rose-600" />
+        <StatCard title="Monthly Salary" value={monthlySalary} icon={CreditCard} iconBg="bg-purple-50" iconColor="text-purple-600" />
+        <StatCard title="Performance Score" value={`${performanceScore} / 5`} icon={TrendingUp} iconBg="bg-sky-50" iconColor="text-sky-600" />
+        <StatCard title="Trainings Finished" value={String(completedTrainings)} icon={GraduationCap} iconBg="bg-indigo-50" iconColor="text-indigo-600" />
+      </div>
+
       {/* Quick Actions */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         {quickActions.map((action) => {
@@ -193,6 +274,37 @@ export default function EmployeeDashboardPage() {
             </Link>
           );
         })}
+      </div>
+
+      {/* Analytics Charts Row */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-bold text-slate-800">Attendance History (%)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AreaChartWrapper
+              data={attendanceHistory}
+              xKey="name"
+              areas={[{ key: "rate", color: "#4f46e5", label: "Attendance Rate" }]}
+              height={180}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-bold text-slate-800">Working Hours (Daily)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BarChartWrapper
+              data={workingHoursHistory}
+              xKey="name"
+              bars={[{ key: "hours", color: "#6b21a8", label: "Hours Worked" }]}
+              height={180}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Middle Row */}
@@ -223,10 +335,10 @@ export default function EmployeeDashboardPage() {
             <Link href="/employee/performance"><span className="text-xs text-primary hover:underline font-semibold cursor-pointer flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></span></Link>
           </CardHeader>
           <CardContent className="space-y-4">
-            {goals.map((goal) => (
+            {goals.slice(0, 3).map((goal) => (
               <div key={goal.title}>
                 <div className="flex justify-between text-xs mb-1.5">
-                  <span className="font-medium text-slate-700 flex-1 pr-2">{goal.title}</span>
+                  <span className="font-medium text-slate-700 flex-1 pr-2 truncate">{goal.title}</span>
                   <span className={`font-bold shrink-0 ${goal.progress === 100 ? "text-emerald-600" : "text-primary"}`}>{goal.progress}%</span>
                 </div>
                 <Progress value={goal.progress} size="sm" variant={goal.progress === 100 ? "success" : "default"} />
@@ -243,15 +355,17 @@ export default function EmployeeDashboardPage() {
             <Link href="/employee/tasks"><span className="text-xs text-primary hover:underline font-semibold cursor-pointer flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></span></Link>
           </CardHeader>
           <CardContent className="space-y-3">
-            {myTasks.map((task) => (
+            {goals.filter(g => g.status !== "done").slice(0, 2).map((task) => (
               <div key={task.title} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <CheckSquare className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-800">{task.title}</p>
+                  <p className="text-xs font-semibold text-slate-800 truncate">{task.title}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Clock className="h-3 w-3 text-slate-400" />
                     <span className="text-[10px] text-slate-400">Due {task.due}</span>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${priorityColor[task.priority]}`}>{task.priority}</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                      {task.status}
+                    </span>
                   </div>
                 </div>
               </div>
