@@ -124,14 +124,7 @@ export default function Sidebar({ role, sections }: SidebarProps) {
 
         {/* Sidebar Footer: Portal Switcher & Account */}
         <div className="border-t border-border p-3 space-y-2 shrink-0">
-          {/* Quick Portal Switcher */}
-          <Link
-            href={role === "admin" ? "/employee/dashboard" : "/admin/dashboard"}
-            className="flex items-center justify-center gap-2 w-full rounded-lg border border-dashed border-border py-2 text-xs font-semibold text-slate-600 hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all"
-          >
-            <ArrowLeftRight className="h-3.5 w-3.5" />
-            <span>Switch to {role === "admin" ? "Employee" : "Admin"} Portal</span>
-          </Link>
+
 
           {/* User Badge */}
           <div className="flex items-center gap-3 rounded-lg p-2.5 bg-slate-50/80 border border-slate-100">
