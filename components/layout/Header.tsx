@@ -6,6 +6,7 @@ import { useUIStore, useAuthStore } from "@/store";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 interface BreadcrumbSegment {
   label: string;
@@ -154,6 +155,9 @@ export default function Header() {
             className="w-full rounded-lg border border-border bg-slate-50 py-2 pl-8 pr-3 text-xs outline-none placeholder:text-slate-400 focus:bg-card focus:ring-1 focus:ring-primary focus:border-primary transition-all"
           />
         </div>
+
+        {/* Theme Toggle */}
+        <ThemeToggle />
 
         {/* Notifications */}
         <div className="relative">
