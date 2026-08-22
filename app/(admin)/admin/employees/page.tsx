@@ -255,7 +255,7 @@ export default function AdminEmployeesPage() {
                       <Badge variant={statusVariant[emp.status] ?? "secondary"}>{emp.status}</Badge>
                     </td>
                     <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <Link href={`/admin/employees/${emp.id}`}>
                           <button className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer transition-colors" aria-label="View"><Eye className="h-3.5 w-3.5" /></button>
                         </Link>
