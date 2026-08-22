@@ -14,6 +14,17 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { Briefcase, Users, Calendar, FileText, Plus, Star, Clock, ChevronRight } from "lucide-react";
 
+interface Job {
+  id: string;
+  title: string;
+  dept: string;
+  location: string;
+  applicants: number;
+  status: "Active" | "Paused" | "Closed";
+  posted: string;
+  description?: string;
+}
+
 interface Candidate {
   id: string;
   name: string;
@@ -42,12 +53,62 @@ const TABS = [
   { label: "Interviews", value: "interviews" },
 ];
 
-const jobPostings = [
-  { id: "J001", title: "Senior Frontend Engineer", dept: "Engineering", location: "Hybrid, SF", applicants: 42, status: "Active", posted: "Aug 10" },
-  { id: "J002", title: "Product Designer II", dept: "Design", location: "Remote", applicants: 28, status: "Active", posted: "Aug 15" },
-  { id: "J003", title: "Sales Account Executive", dept: "Sales", location: "New York", applicants: 15, status: "Paused", posted: "Jul 28" },
-  { id: "J004", title: "DevOps Engineer", dept: "Engineering", location: "Austin, TX", applicants: 19, status: "Active", posted: "Aug 18" },
-  { id: "J005", title: "Content Marketing Manager", dept: "Marketing", location: "Remote", applicants: 33, status: "Closed", posted: "Jul 01" },
+const jobPostings: Job[] = [
+  {
+    id: "J001",
+    title: "Senior Frontend Engineer",
+    dept: "Engineering",
+    location: "Hybrid, SF",
+    applicants: 42,
+    status: "Active",
+    posted: "Aug 10",
+    description:
+      "We are seeking a Senior Frontend Engineer to build scalable web applications using Next.js, React, and TypeScript. You will work closely with product designers and backend engineers to craft beautiful UI components and optimize app performance.",
+  },
+  {
+    id: "J002",
+    title: "Product Designer II",
+    dept: "Design",
+    location: "Remote",
+    applicants: 28,
+    status: "Active",
+    posted: "Aug 15",
+    description:
+      "Looking for an experienced Product Designer II to lead design initiatives across web and mobile platforms. Responsibilities include wireframing, high-fidelity prototyping, user research, and maintaining design systems.",
+  },
+  {
+    id: "J003",
+    title: "Sales Account Executive",
+    dept: "Sales",
+    location: "New York",
+    applicants: 15,
+    status: "Paused",
+    posted: "Jul 28",
+    description:
+      "Drive revenue growth by acquiring enterprise clients. Manage full sales cycles from prospecting and demos to contract negotiation and closing.",
+  },
+  {
+    id: "J004",
+    title: "DevOps Engineer",
+    dept: "Engineering",
+    location: "Austin, TX",
+    applicants: 19,
+    status: "Active",
+    posted: "Aug 18",
+    description:
+      "Architect and maintain cloud infrastructure on AWS/GCP using Terraform, Kubernetes, and CI/CD pipelines to ensure 99.99% uptime and zero-downtime deployments.",
+  },
+  {
+    id: "J005",
+    title: "Content Marketing Manager",
+    dept: "Marketing",
+    location: "Remote",
+    applicants: 33,
+    status: "Closed",
+    posted: "Jul 01",
+    description:
+      "Lead content strategy across blog, social media, and email marketing. Create compelling case studies and whitepapers to drive organic lead generation.",
+  },
 ];
 
 const initialPipeline: Record<string, Candidate[]> = {
@@ -82,9 +143,13 @@ export default function AdminRecruitmentPage() {
   const [tab, setTab] = useState("jobs");
 
   // Job Postings State
-  const [jobs, setJobs] = useState(jobPostings);
+  const [jobs, setJobs] = useState<Job[]>(jobPostings);
   const [isJobOpen, setIsJobOpen] = useState(false);
   const [isInterviewOpen, setIsInterviewOpen] = useState(false);
+
+  // Job Details Modal State
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [isJobDetailsOpen, setIsJobDetailsOpen] = useState(false);
 
   const [jobTitle, setJobTitle] = useState("");
   const [jobDept, setJobDept] = useState("Engineering");
@@ -248,6 +313,11 @@ export default function AdminRecruitmentPage() {
     setInterviewStatusFilter("");
   };
 
+  const handleOpenJobDetails = (job: Job) => {
+    setSelectedJob(job);
+    setIsJobDetailsOpen(true);
+  };
+
   const handleAddJob = (e: React.FormEvent) => {
     e.preventDefault();
     if (!jobTitle.trim() || !jobLocation.trim() || !jobDescription.trim()) {
@@ -259,7 +329,7 @@ export default function AdminRecruitmentPage() {
       return;
     }
 
-    const newJob = {
+    const newJob: Job = {
       id: `J00${jobs.length + 1}`,
       title: jobTitle.trim(),
       dept: jobDept,
@@ -288,7 +358,8 @@ export default function AdminRecruitmentPage() {
     setJobs((prev) =>
       prev.map((j) => {
         if (j.id !== id) return j;
-        const nextStatus = j.status === "Active" ? "Paused" : j.status === "Paused" ? "Closed" : "Active";
+        const nextStatus: "Active" | "Paused" | "Closed" =
+          j.status === "Active" ? "Paused" : j.status === "Paused" ? "Closed" : "Active";
         toast({
           title: "Status updated",
           description: `"${j.title}" is now ${nextStatus.toLowerCase()}.`,
@@ -297,6 +368,12 @@ export default function AdminRecruitmentPage() {
         return { ...j, status: nextStatus };
       })
     );
+
+    if (selectedJob && selectedJob.id === id) {
+      const nextStatus: "Active" | "Paused" | "Closed" =
+        selectedJob.status === "Active" ? "Paused" : selectedJob.status === "Paused" ? "Closed" : "Active";
+      setSelectedJob((prev) => (prev ? { ...prev, status: nextStatus } : null));
+    }
   };
 
   const handleOpenCandidateModal = (c: Candidate) => {
@@ -506,15 +583,19 @@ export default function AdminRecruitmentPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {filteredJobs.map((job) => (
-                      <tr key={job.id} className="hover:bg-slate-50/60 transition-colors group">
+                      <tr
+                        key={job.id}
+                        onClick={() => handleOpenJobDetails(job)}
+                        className="hover:bg-slate-50/60 transition-colors group cursor-pointer"
+                      >
                         <td className="p-4">
-                          <p className="font-semibold text-slate-800 text-xs">{job.title}</p>
+                          <p className="font-semibold text-slate-800 text-xs hover:text-primary transition-colors">{job.title}</p>
                           <p className="text-[10px] text-slate-400 font-mono">{job.id}</p>
                         </td>
                         <td className="p-4 hidden md:table-cell"><Badge variant="secondary">{job.dept}</Badge></td>
                         <td className="p-4 hidden lg:table-cell text-xs text-slate-500">{job.location}</td>
                         <td className="p-4 text-center text-xs font-bold text-primary">{job.applicants}</td>
-                        <td className="p-4">
+                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => handleToggleJobStatus(job.id)}
                             title="Click to cycle status (Active -> Paused -> Closed)"
@@ -524,10 +605,10 @@ export default function AdminRecruitmentPage() {
                           </button>
                         </td>
                         <td className="p-4 hidden sm:table-cell text-xs text-slate-400">{job.posted}</td>
-                        <td className="p-4 text-right">
+                        <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
                           <button
-                            onClick={() => handleToggleJobStatus(job.id)}
-                            title={`Change status (Current: ${job.status})`}
+                            onClick={() => handleOpenJobDetails(job)}
+                            title="View Job Details"
                             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                           >
                             <ChevronRight className="h-4 w-4 text-slate-600" />
@@ -703,6 +784,65 @@ export default function AdminRecruitmentPage() {
           )}
         </div>
       )}
+
+      {/* Job Details Modal */}
+      <Modal isOpen={isJobDetailsOpen && selectedJob !== null} onClose={() => setIsJobDetailsOpen(false)} title="Job Posting Details">
+        {selectedJob && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-slate-900 text-base">{selectedJob.title}</h3>
+                  <Badge variant={statusVariant[selectedJob.status]}>{selectedJob.status}</Badge>
+                </div>
+                <p className="text-xs text-slate-500 font-mono mt-0.5">{selectedJob.id}</p>
+              </div>
+              <div className="shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleToggleJobStatus(selectedJob.id)}
+                  className="cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Change Status ({selectedJob.status})</span>
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-xl border border-slate-100 text-xs">
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Department</span>
+                <span className="font-semibold text-slate-800">{selectedJob.dept}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Location</span>
+                <span className="font-semibold text-slate-800">{selectedJob.location}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Applicants</span>
+                <span className="font-semibold text-primary">{selectedJob.applicants} Applicants</span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Posted Date</span>
+                <span className="font-semibold text-slate-800">{selectedJob.posted}</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Job Description</label>
+              <div className="p-3.5 rounded-xl border border-border bg-white text-xs text-slate-700 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                {selectedJob.description || "No full job description available for this position."}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button onClick={() => setIsJobDetailsOpen(false)} className="w-full sm:w-auto cursor-pointer">
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Candidate Details & Stage Movement Modal */}
       <Modal isOpen={selectedCandidate !== null} onClose={() => setSelectedCandidate(null)} title="Candidate Details & Stage">
