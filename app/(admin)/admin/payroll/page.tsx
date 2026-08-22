@@ -254,6 +254,70 @@ export default function AdminPayrollPage() {
     });
   };
 
+  const handleExportPayrollCSV = () => {
+    const listToExport = filteredPayslips.length > 0 ? filteredPayslips : payslips;
+
+    if (listToExport.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no payslip records available to export.",
+        variant: "error",
+      });
+      return;
+    }
+
+    const escapeCSVCell = (val: string | number | undefined | null): string => {
+      if (val === undefined || val === null) return '""';
+      const str = String(val);
+      if (/[",\n\r]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return `"${str}"`;
+    };
+
+    const headers = [
+      "Payslip ID",
+      "Employee Name",
+      "Department",
+      "Month",
+      "Gross Pay ($)",
+      "Net Paid ($)",
+      "Status",
+    ];
+
+    const rows = listToExport.map((slip) => [
+      escapeCSVCell(slip.id),
+      escapeCSVCell(slip.name),
+      escapeCSVCell(slip.dept),
+      escapeCSVCell(slip.month),
+      escapeCSVCell(slip.gross),
+      escapeCSVCell(slip.net),
+      escapeCSVCell(slip.status),
+    ]);
+
+    const csvContent = [headers.map((h) => `"${h}"`).join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const dateStr = runMonth || new Date().toISOString().split("T")[0];
+    const filename = `payroll-${dateStr}.csv`;
+
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Payroll exported",
+      description: `Payroll CSV downloaded successfully (${listToExport.length} record${listToExport.length > 1 ? "s" : ""}).`,
+      variant: "success",
+    });
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -261,7 +325,7 @@ export default function AdminPayrollPage() {
           <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Payroll Management</h1>
           <p className="text-xs text-slate-500 mt-1">Manage salary disbursements, payslips, and reimbursements</p>
         </div>
-        <Button variant="outline" size="sm" className="flex items-center gap-1.5 cursor-pointer">
+        <Button variant="outline" size="sm" onClick={handleExportPayrollCSV} className="flex items-center gap-1.5 cursor-pointer">
           <Download className="h-4 w-4" /><span>Export Payroll</span>
         </Button>
       </div>
