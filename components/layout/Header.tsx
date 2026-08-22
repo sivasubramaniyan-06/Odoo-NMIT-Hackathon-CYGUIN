@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useAuth } from "@/src/context/AuthContext";
 
 interface BreadcrumbSegment {
   label: string;
@@ -107,9 +108,16 @@ export default function Header() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const unreadCount = mockNotifications.filter((n) => n.unread).length;
 
-  const handleLogout = () => {
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      console.error(e);
+    }
     setAuthUser(null);
-    router.push("/login");
+    router.push("/");
   };
 
   return (
