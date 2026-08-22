@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-const EMPLOYEES = [
+export const EMPLOYEES = [
   { id: "EMP-001", name: "Jordan Kim", role: "Lead Engineer", dept: "Engineering", status: "Active", email: "jordan@acme.com", phone: "+1 555-0101", location: "San Francisco", joined: "2022-03-15", avatar: "JK" },
   { id: "EMP-002", name: "Ana Patel", role: "Product Designer", dept: "Design", status: "Active", email: "ana@acme.com", phone: "+1 555-0102", location: "New York", joined: "2023-01-10", avatar: "AP" },
   { id: "EMP-003", name: "Chen Wei", role: "Sales Director", dept: "Sales", status: "Active", email: "chen@acme.com", phone: "+1 555-0103", location: "Chicago", joined: "2021-06-01", avatar: "CW" },
