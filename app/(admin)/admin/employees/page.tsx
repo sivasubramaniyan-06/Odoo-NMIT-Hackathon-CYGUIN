@@ -169,6 +169,72 @@ export default function AdminEmployeesPage() {
     toast({ title: "Employee added", description: `${newName} has been onboarded successfully.`, variant: "success" });
   };
 
+  const handleExportCSV = () => {
+    if (filtered.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no employee records matching your current search/filter criteria.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const escapeCSVCell = (val: string | number | undefined | null): string => {
+      if (val === undefined || val === null) return '""';
+      const str = String(val);
+      if (/[",\n\r]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return `"${str}"`;
+    };
+
+    const headers = [
+      "Employee ID",
+      "Full Name",
+      "Role",
+      "Email",
+      "Department",
+      "Phone",
+      "Location",
+      "Status",
+      "Joined Date",
+    ];
+
+    const rows = filtered.map((emp) => [
+      escapeCSVCell(emp.id),
+      escapeCSVCell(emp.name),
+      escapeCSVCell(emp.role),
+      escapeCSVCell(emp.email),
+      escapeCSVCell(emp.dept),
+      escapeCSVCell(emp.phone),
+      escapeCSVCell(emp.location),
+      escapeCSVCell(emp.status),
+      escapeCSVCell(emp.joined),
+    ]);
+
+    const csvContent = [headers.map((h) => `"${h}"`).join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const dateStr = new Date().toISOString().split("T")[0];
+    const filename = `employees-${dateStr}.csv`;
+
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export complete",
+      description: `Exported ${filtered.length} employee record${filtered.length > 1 ? "s" : ""} to ${filename}.`,
+      variant: "success",
+    });
+  };
+
   const statusVariant: Record<string, "success" | "warning" | "danger" | "secondary"> = {
     Active: "success", "On Leave": "warning", Inactive: "danger",
   };
@@ -182,7 +248,7 @@ export default function AdminEmployeesPage() {
           <p className="text-xs text-slate-500 mt-1">{employees.length} employees across {DEPT_OPTIONS.length - 1} departments</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="flex items-center gap-1.5 cursor-pointer">
+          <Button variant="outline" size="sm" onClick={handleExportCSV} className="flex items-center gap-1.5 cursor-pointer">
             <Download className="h-4 w-4" /><span className="hidden sm:inline">Export</span>
           </Button>
           <Button size="sm" onClick={() => setIsAddOpen(true)} className="flex items-center gap-1.5 cursor-pointer">
