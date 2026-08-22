@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -80,8 +80,8 @@ const stageColors = ["bg-sky-50 border-sky-200", "bg-amber-50 border-amber-200",
 export default function AdminRecruitmentPage() {
   const { toast } = useToast();
   const [tab, setTab] = useState("jobs");
-  const [search, setSearch] = useState("");
 
+  // Job Postings State
   const [jobs, setJobs] = useState(jobPostings);
   const [isJobOpen, setIsJobOpen] = useState(false);
   const [isInterviewOpen, setIsInterviewOpen] = useState(false);
@@ -91,11 +91,20 @@ export default function AdminRecruitmentPage() {
   const [jobLocation, setJobLocation] = useState("");
   const [jobDescription, setJobDescription] = useState("");
 
+  // Job Postings Filters
+  const [jobSearch, setJobSearch] = useState("");
+  const [jobDeptFilter, setJobDeptFilter] = useState("");
+  const [jobStatusFilter, setJobStatusFilter] = useState("");
+
   // Candidate Pipeline State
   const [pipelineData, setPipelineData] = useState<Record<string, Candidate[]>>(initialPipeline);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [candidateStage, setCandidateStage] = useState<"Applied" | "Screening" | "Interview" | "Offer Sent">("Applied");
   const [candidateNotes, setCandidateNotes] = useState<string>("");
+
+  // Candidate Pipeline Filters
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [candidateRoleFilter, setCandidateRoleFilter] = useState("");
 
   // Interview Management State
   const [interviewList, setInterviewList] = useState<Interview[]>(initialInterviews);
@@ -106,17 +115,138 @@ export default function AdminRecruitmentPage() {
   const [ivInterviewer, setIvInterviewer] = useState("");
   const [ivType, setIvType] = useState("Technical");
 
+  // Interview Filters
+  const [interviewSearch, setInterviewSearch] = useState("");
+  const [interviewTypeFilter, setInterviewTypeFilter] = useState("");
+  const [interviewStatusFilter, setInterviewStatusFilter] = useState("");
+
   // Interview Notes Modal State
   const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
   const [editingNotes, setEditingNotes] = useState("");
 
-  const filteredJobs = jobs.filter(
-    (j) =>
-      !search ||
-      j.title.toLowerCase().includes(search.toLowerCase()) ||
-      j.dept.toLowerCase().includes(search.toLowerCase()) ||
-      j.location.toLowerCase().includes(search.toLowerCase())
-  );
+  // Memoized Job Dept Options
+  const jobDeptOptions = useMemo(() => {
+    const depts = Array.from(new Set(jobs.map((j) => j.dept)));
+    return [
+      { value: "", label: "All Departments" },
+      ...depts.map((d) => ({ value: d, label: d })),
+    ];
+  }, [jobs]);
+
+  const jobStatusOptions = [
+    { value: "", label: "All Statuses" },
+    { value: "Active", label: "Active" },
+    { value: "Paused", label: "Paused" },
+    { value: "Closed", label: "Closed" },
+  ];
+
+  // Filtered Jobs
+  const filteredJobs = useMemo(() => {
+    const searchLower = jobSearch.toLowerCase();
+    return jobs.filter((j) => {
+      const matchesSearch =
+        !jobSearch ||
+        j.title.toLowerCase().includes(searchLower) ||
+        j.dept.toLowerCase().includes(searchLower) ||
+        j.location.toLowerCase().includes(searchLower);
+      const matchesDept = !jobDeptFilter || j.dept === jobDeptFilter;
+      const matchesStatus = !jobStatusFilter || j.status === jobStatusFilter;
+      return matchesSearch && matchesDept && matchesStatus;
+    });
+  }, [jobs, jobSearch, jobDeptFilter, jobStatusFilter]);
+
+  const handleClearJobFilters = () => {
+    setJobSearch("");
+    setJobDeptFilter("");
+    setJobStatusFilter("");
+  };
+
+  // Memoized Candidate Role Options
+  const candidateRoleOptions = useMemo(() => {
+    const roles = new Set<string>();
+    Object.values(pipelineData).forEach((list) => {
+      list.forEach((c) => {
+        if (c.role) roles.add(c.role);
+      });
+    });
+    return [
+      { value: "", label: "All Roles" },
+      ...Array.from(roles).map((r) => ({ value: r, label: r })),
+    ];
+  }, [pipelineData]);
+
+  // Filtered Pipeline Data
+  const filteredPipelineData = useMemo(() => {
+    const result: Record<string, Candidate[]> = {};
+    const searchLower = candidateSearch.toLowerCase();
+
+    pipelineStages.forEach((stage) => {
+      const stageCandidates = pipelineData[stage] || [];
+      result[stage] = stageCandidates.filter((c) => {
+        const matchesSearch =
+          !candidateSearch ||
+          c.name.toLowerCase().includes(searchLower) ||
+          c.role.toLowerCase().includes(searchLower) ||
+          c.id.toLowerCase().includes(searchLower) ||
+          (c.notes && c.notes.toLowerCase().includes(searchLower));
+
+        const matchesRole = !candidateRoleFilter || c.role === candidateRoleFilter;
+
+        return matchesSearch && matchesRole;
+      });
+    });
+
+    return result;
+  }, [pipelineData, candidateSearch, candidateRoleFilter]);
+
+  const totalFilteredCandidates = useMemo(() => {
+    return Object.values(filteredPipelineData).reduce((acc, list) => acc + list.length, 0);
+  }, [filteredPipelineData]);
+
+  const handleClearCandidateFilters = () => {
+    setCandidateSearch("");
+    setCandidateRoleFilter("");
+  };
+
+  // Memoized Interview Type Options
+  const interviewTypeOptions = useMemo(() => {
+    const types = Array.from(new Set(interviewList.map((iv) => iv.type)));
+    return [
+      { value: "", label: "All Types" },
+      ...types.map((t) => ({ value: t, label: t })),
+    ];
+  }, [interviewList]);
+
+  const interviewStatusOptions = [
+    { value: "", label: "All Statuses" },
+    { value: "Scheduled", label: "Scheduled" },
+    { value: "In Progress", label: "In Progress" },
+    { value: "Completed", label: "Completed" },
+  ];
+
+  // Filtered Interviews
+  const filteredInterviews = useMemo(() => {
+    const searchLower = interviewSearch.toLowerCase();
+    return interviewList.filter((iv) => {
+      const matchesSearch =
+        !interviewSearch ||
+        iv.candidate.toLowerCase().includes(searchLower) ||
+        iv.role.toLowerCase().includes(searchLower) ||
+        iv.interviewer.toLowerCase().includes(searchLower) ||
+        iv.id.toLowerCase().includes(searchLower);
+
+      const matchesType = !interviewTypeFilter || iv.type === interviewTypeFilter;
+      const matchesStatus = !interviewStatusFilter || iv.status === interviewStatusFilter;
+
+      return matchesSearch && matchesType && matchesStatus;
+    });
+  }, [interviewList, interviewSearch, interviewTypeFilter, interviewStatusFilter]);
+
+  const handleClearInterviewFilters = () => {
+    setInterviewSearch("");
+    setInterviewTypeFilter("");
+    setInterviewStatusFilter("");
+  };
 
   const handleAddJob = (e: React.FormEvent) => {
     e.preventDefault();
@@ -326,19 +456,38 @@ export default function AdminRecruitmentPage() {
 
       {tab === "jobs" && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <CardTitle>All Job Postings</CardTitle>
-            <SearchBar value={search} onChange={setSearch} placeholder="Search jobs..." className="w-60" />
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full sm:w-auto">
+              <SearchBar
+                value={jobSearch}
+                onChange={setJobSearch}
+                placeholder="Search jobs..."
+                className="w-full sm:w-60"
+              />
+              <Select
+                options={jobDeptOptions}
+                value={jobDeptFilter}
+                onChange={(e) => setJobDeptFilter(e.target.value)}
+                className="w-full sm:w-44"
+              />
+              <Select
+                options={jobStatusOptions}
+                value={jobStatusFilter}
+                onChange={(e) => setJobStatusFilter(e.target.value)}
+                className="w-full sm:w-36"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             {filteredJobs.length === 0 ? (
               <EmptyState
                 variant="search"
                 title="No job postings found"
-                description="No positions match your search criteria."
+                description="No positions match your search or filter criteria."
                 action={{
-                  label: "Clear search",
-                  onClick: () => setSearch(""),
+                  label: "Clear filters",
+                  onClick: handleClearJobFilters,
                 }}
               />
             ) : (
@@ -395,95 +544,163 @@ export default function AdminRecruitmentPage() {
       )}
 
       {tab === "pipeline" && (
-        <div className="grid gap-4 lg:grid-cols-4">
-          {pipelineStages.map((stage, si) => {
-            const stageCandidates = pipelineData[stage] ?? [];
-            return (
-              <div key={stage} className={`rounded-xl border-2 ${stageColors[si]} p-4 space-y-3`}>
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{stage}</h3>
-                  <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold text-slate-600 border">
-                    {stageCandidates.length}
-                  </span>
-                </div>
-                {stageCandidates.length === 0 ? (
-                  <div className="p-4 text-center rounded-xl bg-white/60 border border-dashed border-slate-200">
-                    <p className="text-xs text-slate-400 font-medium">No candidates in {stage}</p>
-                  </div>
-                ) : (
-                  stageCandidates.map((c) => (
-                    <div
-                      key={c.id || c.name}
-                      onClick={() => handleOpenCandidateModal(c)}
-                      className="bg-card rounded-xl p-3 border border-border shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-pointer space-y-2 group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                          {c.avatar}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-slate-800 group-hover:text-primary transition-colors truncate">{c.name}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{c.role}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-slate-400">Match Score</span>
-                        <span className={`text-[10px] font-bold ${c.score >= 85 ? "text-emerald-600" : c.score >= 75 ? "text-amber-600" : "text-rose-600"}`}>
-                          {c.score}%
-                        </span>
-                      </div>
-                      {c.notes && (
-                        <p className="text-[10px] text-slate-500 italic border-t pt-1.5 line-clamp-2">"{c.notes}"</p>
-                      )}
+        <div className="space-y-4">
+          <Card className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <SearchBar
+                placeholder="Search candidates by name, role, notes..."
+                value={candidateSearch}
+                onChange={setCandidateSearch}
+                className="flex-1"
+              />
+              <Select
+                options={candidateRoleOptions}
+                value={candidateRoleFilter}
+                onChange={(e) => setCandidateRoleFilter(e.target.value)}
+                className="w-full sm:w-48"
+              />
+            </div>
+          </Card>
+
+          {totalFilteredCandidates === 0 ? (
+            <EmptyState
+              variant="search"
+              title="No candidates found"
+              description="No candidates match your active search or role filter."
+              action={{
+                label: "Clear filters",
+                onClick: handleClearCandidateFilters,
+              }}
+            />
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-4">
+              {pipelineStages.map((stage, si) => {
+                const stageCandidates = filteredPipelineData[stage] ?? [];
+                return (
+                  <div key={stage} className={`rounded-xl border-2 ${stageColors[si]} p-4 space-y-3`}>
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{stage}</h3>
+                      <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold text-slate-600 border">
+                        {stageCandidates.length}
+                      </span>
                     </div>
-                  ))
-                )}
-              </div>
-            );
-          })}
+                    {stageCandidates.length === 0 ? (
+                      <div className="p-4 text-center rounded-xl bg-white/60 border border-dashed border-slate-200">
+                        <p className="text-xs text-slate-400 font-medium">No candidates in {stage}</p>
+                      </div>
+                    ) : (
+                      stageCandidates.map((c) => (
+                        <div
+                          key={c.id || c.name}
+                          onClick={() => handleOpenCandidateModal(c)}
+                          className="bg-card rounded-xl p-3 border border-border shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-pointer space-y-2 group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                              {c.avatar}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-800 group-hover:text-primary transition-colors truncate">{c.name}</p>
+                              <p className="text-[10px] text-slate-500 truncate">{c.role}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-slate-400">Match Score</span>
+                            <span className={`text-[10px] font-bold ${c.score >= 85 ? "text-emerald-600" : c.score >= 75 ? "text-amber-600" : "text-rose-600"}`}>
+                              {c.score}%
+                            </span>
+                          </div>
+                          {c.notes && (
+                            <p className="text-[10px] text-slate-500 italic border-t pt-1.5 line-clamp-2">"{c.notes}"</p>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
       {tab === "interviews" && (
         <div className="space-y-4">
-          {interviewList.map((iv) => (
-            <Card key={iv.id} className="hover:shadow-md transition-shadow">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-bold text-slate-800">{iv.candidate}</p>
-                    <Badge variant="secondary">{iv.type}</Badge>
-                    <Badge variant={iv.status === "Completed" ? "success" : iv.status === "In Progress" ? "warning" : "info"}>
-                      {iv.status}
-                    </Badge>
+          <Card className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <SearchBar
+                placeholder="Search interviews by candidate, position, interviewer..."
+                value={interviewSearch}
+                onChange={setInterviewSearch}
+                className="flex-1"
+              />
+              <Select
+                options={interviewTypeOptions}
+                value={interviewTypeFilter}
+                onChange={(e) => setInterviewTypeFilter(e.target.value)}
+                className="w-full sm:w-44"
+              />
+              <Select
+                options={interviewStatusOptions}
+                value={interviewStatusFilter}
+                onChange={(e) => setInterviewStatusFilter(e.target.value)}
+                className="w-full sm:w-36"
+              />
+            </div>
+          </Card>
+
+          {filteredInterviews.length === 0 ? (
+            <EmptyState
+              variant="search"
+              title="No interviews found"
+              description="No interviews match your active search or filter criteria."
+              action={{
+                label: "Clear filters",
+                onClick: handleClearInterviewFilters,
+              }}
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredInterviews.map((iv) => (
+                <Card key={iv.id} className="hover:shadow-md transition-shadow">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-bold text-slate-800">{iv.candidate}</p>
+                        <Badge variant="secondary">{iv.type}</Badge>
+                        <Badge variant={iv.status === "Completed" ? "success" : iv.status === "In Progress" ? "warning" : "info"}>
+                          {iv.status}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">{iv.role}</p>
+                      <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-400">
+                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{iv.date}</span>
+                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />Interviewer: {iv.interviewer}</span>
+                      </div>
+                      {iv.notes && (
+                        <p className="text-xs text-slate-500 italic mt-2 border-t pt-2 line-clamp-2">"{iv.notes}"</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button size="sm" variant="outline" onClick={() => handleOpenInterviewNotes(iv)} className="cursor-pointer">
+                        View Notes
+                      </Button>
+                      {iv.status === "Scheduled" && (
+                        <Button size="sm" onClick={() => handleAdvanceInterviewStatus(iv.id)} className="cursor-pointer">
+                          Start Interview
+                        </Button>
+                      )}
+                      {iv.status === "In Progress" && (
+                        <Button size="sm" onClick={() => handleAdvanceInterviewStatus(iv.id)} className="bg-emerald-600 hover:bg-emerald-700 cursor-pointer">
+                          Complete Interview
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">{iv.role}</p>
-                  <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-400">
-                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{iv.date}</span>
-                    <span className="flex items-center gap-1"><Users className="h-3 w-3" />Interviewer: {iv.interviewer}</span>
-                  </div>
-                  {iv.notes && (
-                    <p className="text-xs text-slate-500 italic mt-2 border-t pt-2 line-clamp-2">"{iv.notes}"</p>
-                  )}
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => handleOpenInterviewNotes(iv)} className="cursor-pointer">
-                    View Notes
-                  </Button>
-                  {iv.status === "Scheduled" && (
-                    <Button size="sm" onClick={() => handleAdvanceInterviewStatus(iv.id)} className="cursor-pointer">
-                      Start Interview
-                    </Button>
-                  )}
-                  {iv.status === "In Progress" && (
-                    <Button size="sm" onClick={() => handleAdvanceInterviewStatus(iv.id)} className="bg-emerald-600 hover:bg-emerald-700 cursor-pointer">
-                      Complete Interview
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
