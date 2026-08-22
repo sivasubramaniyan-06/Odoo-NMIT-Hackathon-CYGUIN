@@ -10,6 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { SearchBar } from "@/components/ui/SearchBar";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { Briefcase, Users, Calendar, FileText, Plus, Star, Clock, ChevronRight } from "lucide-react";
 
@@ -58,20 +59,73 @@ export default function AdminRecruitmentPage() {
   const { toast } = useToast();
   const [tab, setTab] = useState("jobs");
   const [search, setSearch] = useState("");
+
+  const [jobs, setJobs] = useState(jobPostings);
   const [isJobOpen, setIsJobOpen] = useState(false);
   const [isInterviewOpen, setIsInterviewOpen] = useState(false);
+
   const [jobTitle, setJobTitle] = useState("");
   const [jobDept, setJobDept] = useState("Engineering");
+  const [jobLocation, setJobLocation] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
 
-  const filteredJobs = jobPostings.filter((j) =>
-    !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.dept.toLowerCase().includes(search.toLowerCase())
+  const filteredJobs = jobs.filter(
+    (j) =>
+      !search ||
+      j.title.toLowerCase().includes(search.toLowerCase()) ||
+      j.dept.toLowerCase().includes(search.toLowerCase()) ||
+      j.location.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleAddJob = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!jobTitle.trim() || !jobLocation.trim() || !jobDescription.trim()) {
+      toast({
+        title: "Validation error",
+        description: "Please fill in all required job details.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    const newJob = {
+      id: `J00${jobs.length + 1}`,
+      title: jobTitle.trim(),
+      dept: jobDept,
+      location: jobLocation.trim(),
+      applicants: 0,
+      status: "Active",
+      posted: "Just now",
+      description: jobDescription.trim(),
+    };
+
+    setJobs((prev) => [newJob, ...prev]);
     setIsJobOpen(false);
-    toast({ title: "Job posting created", description: `"${jobTitle}" has been published and is now accepting applications.`, variant: "success" });
     setJobTitle("");
+    setJobDept("Engineering");
+    setJobLocation("");
+    setJobDescription("");
+
+    toast({
+      title: "Job posted",
+      description: `"${newJob.title}" has been published and is now accepting applications.`,
+      variant: "success",
+    });
+  };
+
+  const handleToggleJobStatus = (id: string) => {
+    setJobs((prev) =>
+      prev.map((j) => {
+        if (j.id !== id) return j;
+        const nextStatus = j.status === "Active" ? "Paused" : j.status === "Paused" ? "Closed" : "Active";
+        toast({
+          title: "Status updated",
+          description: `"${j.title}" is now ${nextStatus.toLowerCase()}.`,
+          variant: "success",
+        });
+        return { ...j, status: nextStatus };
+      })
+    );
   };
 
   const statusVariant: Record<string, "success" | "warning" | "danger" | "secondary"> = {
@@ -96,8 +150,8 @@ export default function AdminRecruitmentPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Active Positions" value="4" icon={Briefcase} iconBg="bg-purple-50" iconColor="text-primary" trend={{ value: 33 }} />
-        <StatCard title="Total Applicants" value="137" icon={Users} iconBg="bg-sky-50" iconColor="text-sky-600" trend={{ value: 15 }} />
+        <StatCard title="Active Positions" value={jobs.filter((j) => j.status === "Active").length.toString()} icon={Briefcase} iconBg="bg-purple-50" iconColor="text-primary" trend={{ value: 33 }} />
+        <StatCard title="Total Applicants" value={jobs.reduce((acc, j) => acc + j.applicants, 0).toString()} icon={Users} iconBg="bg-sky-50" iconColor="text-sky-600" trend={{ value: 15 }} />
         <StatCard title="Interviews This Week" value="5" icon={Calendar} iconBg="bg-amber-50" iconColor="text-amber-600" />
         <StatCard title="Offer Acceptance Rate" value="78%" icon={Star} iconBg="bg-emerald-50" iconColor="text-emerald-600" />
       </div>
@@ -111,41 +165,65 @@ export default function AdminRecruitmentPage() {
             <SearchBar value={search} onChange={setSearch} placeholder="Search jobs..." className="w-60" />
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-border text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="p-4 text-left">Position</th>
-                    <th className="p-4 text-left hidden md:table-cell">Department</th>
-                    <th className="p-4 text-left hidden lg:table-cell">Location</th>
-                    <th className="p-4 text-center">Applicants</th>
-                    <th className="p-4 text-left">Status</th>
-                    <th className="p-4 text-left hidden sm:table-cell">Posted</th>
-                    <th className="p-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredJobs.map((job) => (
-                    <tr key={job.id} className="hover:bg-slate-50/60 transition-colors group">
-                      <td className="p-4">
-                        <p className="font-semibold text-slate-800 text-xs">{job.title}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">{job.id}</p>
-                      </td>
-                      <td className="p-4 hidden md:table-cell"><Badge variant="secondary">{job.dept}</Badge></td>
-                      <td className="p-4 hidden lg:table-cell text-xs text-slate-500">{job.location}</td>
-                      <td className="p-4 text-center text-xs font-bold text-primary">{job.applicants}</td>
-                      <td className="p-4"><Badge variant={statusVariant[job.status]}>{job.status}</Badge></td>
-                      <td className="p-4 hidden sm:table-cell text-xs text-slate-400">{job.posted}</td>
-                      <td className="p-4 text-right">
-                        <button className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer opacity-0 group-hover:opacity-100 transition-all">
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
+            {filteredJobs.length === 0 ? (
+              <EmptyState
+                variant="search"
+                title="No job postings found"
+                description="No positions match your search criteria."
+                action={{
+                  label: "Clear search",
+                  onClick: () => setSearch(""),
+                }}
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-border text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      <th className="p-4 text-left">Position</th>
+                      <th className="p-4 text-left hidden md:table-cell">Department</th>
+                      <th className="p-4 text-left hidden lg:table-cell">Location</th>
+                      <th className="p-4 text-center">Applicants</th>
+                      <th className="p-4 text-left">Status</th>
+                      <th className="p-4 text-left hidden sm:table-cell">Posted</th>
+                      <th className="p-4 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filteredJobs.map((job) => (
+                      <tr key={job.id} className="hover:bg-slate-50/60 transition-colors group">
+                        <td className="p-4">
+                          <p className="font-semibold text-slate-800 text-xs">{job.title}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">{job.id}</p>
+                        </td>
+                        <td className="p-4 hidden md:table-cell"><Badge variant="secondary">{job.dept}</Badge></td>
+                        <td className="p-4 hidden lg:table-cell text-xs text-slate-500">{job.location}</td>
+                        <td className="p-4 text-center text-xs font-bold text-primary">{job.applicants}</td>
+                        <td className="p-4">
+                          <button
+                            onClick={() => handleToggleJobStatus(job.id)}
+                            title="Click to cycle status (Active -> Paused -> Closed)"
+                            className="cursor-pointer transition-transform hover:scale-105"
+                          >
+                            <Badge variant={statusVariant[job.status]}>{job.status}</Badge>
+                          </button>
+                        </td>
+                        <td className="p-4 hidden sm:table-cell text-xs text-slate-400">{job.posted}</td>
+                        <td className="p-4 text-right">
+                          <button
+                            onClick={() => handleToggleJobStatus(job.id)}
+                            title={`Change status (Current: ${job.status})`}
+                            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                          >
+                            <ChevronRight className="h-4 w-4 text-slate-600" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -216,12 +294,40 @@ export default function AdminRecruitmentPage() {
       {/* Post Job Modal */}
       <Modal isOpen={isJobOpen} onClose={() => setIsJobOpen(false)} title="Create Job Posting">
         <form onSubmit={handleAddJob} className="space-y-4">
-          <Input label="Job Title" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} required placeholder="e.g. Senior Frontend Engineer" />
-          <Select label="Department" options={[{ value: "Engineering", label: "Engineering" }, { value: "Design", label: "Design" }, { value: "Sales", label: "Sales" }, { value: "Marketing", label: "Marketing" }]} value={jobDept} onChange={(e) => setJobDept(e.target.value)} />
-          <Input label="Location" placeholder="e.g. Remote, San Francisco" />
+          <Input
+            label="Job Title"
+            value={jobTitle}
+            onChange={(e) => setJobTitle(e.target.value)}
+            required
+            placeholder="e.g. Senior Frontend Engineer"
+          />
+          <Select
+            label="Department"
+            options={[
+              { value: "Engineering", label: "Engineering" },
+              { value: "Design", label: "Design" },
+              { value: "Sales", label: "Sales" },
+              { value: "Marketing", label: "Marketing" },
+            ]}
+            value={jobDept}
+            onChange={(e) => setJobDept(e.target.value)}
+          />
+          <Input
+            label="Location"
+            value={jobLocation}
+            onChange={(e) => setJobLocation(e.target.value)}
+            required
+            placeholder="e.g. Remote, San Francisco"
+          />
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Job Description</label>
-            <textarea className="w-full min-h-[80px] rounded-lg border border-border p-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Describe the role and responsibilities..." />
+            <textarea
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              required
+              className="w-full min-h-[80px] rounded-lg border border-border p-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="Describe the role and responsibilities..."
+            />
           </div>
           <div className="flex gap-3 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => setIsJobOpen(false)} className="flex-1 cursor-pointer">Cancel</Button>
