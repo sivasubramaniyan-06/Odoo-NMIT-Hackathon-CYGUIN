@@ -23,9 +23,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAdminSession = () => {
       if (typeof window !== "undefined") {
-        const cookies = document.cookie.split(";").map(c => c.trim());
-        const adminCookie = cookies.find(c => c.startsWith("sb-admin-token="));
-        if (adminCookie && adminCookie.split("=")[1] === "admin-logged-in") {
+        const localSessionStr = localStorage.getItem("admin-session");
+        let parsed = null;
+        if (localSessionStr) {
+          try {
+            parsed = JSON.parse(localSessionStr);
+          } catch (_) {}
+        }
+        
+        if (!parsed) {
+          const cookies = document.cookie.split(";").map(c => c.trim());
+          const adminCookie = cookies.find(c => c.startsWith("admin-session="));
+          if (adminCookie) {
+            try {
+              parsed = JSON.parse(decodeURIComponent(adminCookie.split("=")[1]));
+            } catch (_) {}
+          }
+        }
+
+        if (parsed && parsed.role === "admin" && parsed.loggedIn === true) {
           const mockAdminUser: any = {
             id: "admin-123",
             email: "admin@company.com",
@@ -69,7 +85,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, currentSession) => {
-        // If we have an active admin session, do not override with null from Supabase
         if (checkAdminSession()) return;
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
@@ -93,7 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       if (typeof window !== "undefined") {
-        document.cookie = "sb-admin-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+        localStorage.removeItem("admin-session");
+        document.cookie = "admin-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
       }
       await supabase.auth.signOut();
     } catch (err) {

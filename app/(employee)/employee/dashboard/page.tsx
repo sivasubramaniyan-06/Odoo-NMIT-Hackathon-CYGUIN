@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
 import { StatCard } from "@/components/ui/StatCard";
 import Link from "next/link";
+import { useAuth } from "@/src/context/AuthContext";
+import { createClient } from "@/src/lib/supabase/client";
 import {
   CalendarCheck, CalendarOff, CreditCard, TrendingUp, Clock,
   ArrowRight, Megaphone, CheckSquare, GraduationCap, Star,
@@ -53,16 +55,125 @@ export default function EmployeeDashboardPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
+  const { user } = useAuth();
+  const email = user?.email || "";
+  const supabase = createClient();
+
+  const [employeeInfo, setEmployeeInfo] = useState<any>(null);
+  const [goals, setGoals] = useState<any[]>(myGoals);
+  const [leaves, setLeaves] = useState<any[]>(leaveBalances);
+  const [loading, setLoading] = useState(true);
+  const [checkedInStatus, setCheckedInStatus] = useState("Not checked in yet today");
+
+  const fetchEmployeeData = async () => {
+    if (!email) return;
+
+    try {
+      // 1. Fetch Employee record by email
+      const { data: emp } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("work_email", email)
+        .maybeSingle();
+
+      if (emp) {
+        setEmployeeInfo(emp);
+
+        // Fetch Goals for this employee
+        const { data: goalsList } = await supabase
+          .from("goals")
+          .select("*")
+          .eq("employee_id", emp.id);
+        if (goalsList && goalsList.length > 0) {
+          setGoals(goalsList.map(g => ({
+            title: g.title,
+            progress: g.progress || 0,
+            due: g.due_date ? new Date(g.due_date).toLocaleDateString() : "No deadline"
+          })));
+        }
+
+        // Fetch Leave Requests to compute leave balance
+        const { data: leavesList } = await supabase
+          .from("leave_requests")
+          .select("*")
+          .eq("employee_id", emp.id);
+
+        if (leavesList) {
+          // Count approved days by type
+          const usedAnnual = leavesList.filter(l => l.leave_type === "Annual" && l.status === "Approved").reduce((sum, l) => sum + (l.duration || 1), 0);
+          const usedSick = leavesList.filter(l => l.leave_type === "Sick" && l.status === "Approved").reduce((sum, l) => sum + (l.duration || 1), 0);
+          const usedUnpaid = leavesList.filter(l => l.leave_type === "Unpaid" && l.status === "Approved").reduce((sum, l) => sum + (l.duration || 1), 0);
+
+          setLeaves([
+            { type: "Annual", remaining: Math.max(0, 20 - usedAnnual), total: 20, color: "text-primary" },
+            { type: "Sick", remaining: Math.max(0, 8 - usedSick), total: 8, color: "text-emerald-600" },
+            { type: "Unpaid", remaining: Math.max(0, 5 - usedUnpaid), total: 5, color: "text-amber-600" }
+          ]);
+        }
+
+        // Fetch today's clock in status
+        const todayStr = new Date().toISOString().split("T")[0];
+        const { data: todayLog } = await supabase
+          .from("attendance_logs")
+          .select("*")
+          .eq("employee_id", emp.id)
+          .gte("created_at", `${todayStr}T00:00:00`)
+          .maybeSingle();
+
+        if (todayLog) {
+          setCheckedInStatus(`You checked in today at ${new Date(todayLog.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+        }
+      } else {
+        // Fallback using auth user name if profile/employee record is not fully set up in postgres yet
+        setEmployeeInfo({
+          first_name: user?.user_metadata?.full_name?.split(" ")[0] || "Employee",
+          last_name: user?.user_metadata?.full_name?.split(" ").slice(1).join(" ") || ""
+        });
+      }
+    } catch (err) {
+      console.error("Employee dashboard load error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployeeData();
+
+    // Subscribe to realtime updates for this employee's goals and leave requests
+    const channel = supabase
+      .channel("employee_dashboard_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "goals" },
+        () => { fetchEmployeeData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leave_requests" },
+        () => { fetchEmployeeData(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [email]);
+
+  if (loading) return <div className="p-6">Loading workspace...</div>;
+
+  const displayName = employeeInfo ? `${employeeInfo.first_name || ""} ${employeeInfo.last_name || ""}`.trim() : "Employee";
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Greeting Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-secondary to-indigo-400 p-6 text-white shadow-lg">
         <div className="relative z-10">
-          <h1 className="text-xl font-bold sm:text-2xl">{greeting}, Alex 👋</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">{greeting}, {displayName} 👋</h1>
           <p className="text-sm text-white/80 mt-1">{today}</p>
           <div className="flex items-center gap-2 mt-3">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-white/90 font-medium">You checked in today at 8:50 AM · 9h 05m worked</span>
+            <span className="text-xs text-white/90 font-medium">{checkedInStatus}</span>
           </div>
         </div>
         <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5" />
@@ -93,7 +204,7 @@ export default function EmployeeDashboardPage() {
             <Link href="/employee/leave"><span className="text-xs text-primary hover:underline font-semibold cursor-pointer flex items-center gap-1">Apply <ArrowRight className="h-3 w-3" /></span></Link>
           </CardHeader>
           <CardContent className="space-y-4">
-            {leaveBalances.map((lb) => (
+            {leaves.map((lb) => (
               <div key={lb.type}>
                 <div className="flex justify-between text-xs mb-1.5">
                   <span className="font-semibold text-slate-600">{lb.type} Leave</span>
@@ -112,7 +223,7 @@ export default function EmployeeDashboardPage() {
             <Link href="/employee/performance"><span className="text-xs text-primary hover:underline font-semibold cursor-pointer flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></span></Link>
           </CardHeader>
           <CardContent className="space-y-4">
-            {myGoals.map((goal) => (
+            {goals.map((goal) => (
               <div key={goal.title}>
                 <div className="flex justify-between text-xs mb-1.5">
                   <span className="font-medium text-slate-700 flex-1 pr-2">{goal.title}</span>

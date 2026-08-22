@@ -48,8 +48,15 @@ export function LoginForm({ role }: { role: "admin" | "employee" }) {
     if (role === "admin") {
       // Admin Authentication with fixed credentials: admin / admin@123
       if (email.trim() === "admin" && password === "admin@123") {
-        // Set local admin session cookie
-        document.cookie = "sb-admin-token=admin-logged-in; path=/; max-age=86400; SameSite=Lax";
+        const sessionObj = {
+          username: "admin",
+          role: "admin",
+          loggedIn: true
+        };
+        // Store in localStorage
+        localStorage.setItem("admin-session", JSON.stringify(sessionObj));
+        // Also store in cookie for middleware
+        document.cookie = `admin-session=${encodeURIComponent(JSON.stringify(sessionObj))}; path=/; max-age=86400; SameSite=Lax`;
         
         toast({
           title: "Welcome Admin",
@@ -57,14 +64,14 @@ export function LoginForm({ role }: { role: "admin" | "employee" }) {
           variant: "success",
         });
 
-        // Trigger reload/redirect to Admin Dashboard
+        // Trigger redirect to Admin Dashboard immediately
         setTimeout(() => {
           window.location.href = "/admin/dashboard";
-        }, 500);
+        }, 300);
       } else {
         toast({
           title: "Authentication Failed",
-          description: "Invalid admin credentials.",
+          description: "Invalid admin username or password.",
           variant: "error",
         });
         setLoading(false);

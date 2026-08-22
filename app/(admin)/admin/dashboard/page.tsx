@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { createClient } from "@/src/lib/supabase/client";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -60,7 +61,118 @@ const topPerformers = [
 ];
 
 export default function AdminDashboardPage() {
-  const [loading] = useState(false);
+  const [employeeCount, setEmployeeCount] = useState(167);
+  const [attendanceRate, setAttendanceRate] = useState("96.2%");
+  const [pendingLeaveCount, setPendingLeaveCount] = useState(5);
+  const [openPositions, setOpenPositions] = useState(12);
+  const [payrollCost, setPayrollCost] = useState("$412K");
+  const [avgPerformance, setAvgPerformance] = useState("4.4 / 5");
+
+  const [loading, setLoading] = useState(true);
+  const [pendingLeavesList, setPendingLeavesList] = useState<any[]>([]);
+  const [deptDistribution, setDeptDistribution] = useState(deptData);
+
+  const supabase = createClient();
+
+  const fetchDashboardData = async () => {
+    try {
+      // 1. Employees Count & Dept Distribution
+      const { data: emps } = await supabase.from("employees").select("id, department");
+      if (emps) {
+        setEmployeeCount(emps.length);
+        
+        // Group by department
+        const depts: Record<string, number> = {};
+        emps.forEach(e => {
+          const d = e.department || "General";
+          depts[d] = (depts[d] || 0) + 1;
+        });
+        const formattedDepts = Object.keys(depts).map(name => ({
+          name,
+          count: depts[name]
+        }));
+        if (formattedDepts.length > 0) {
+          setDeptDistribution(formattedDepts);
+        }
+      }
+
+      // 2. Pending Leaves Count & List
+      const { data: leaves } = await supabase
+        .from("leave_requests")
+        .select("*")
+        .eq("status", "Pending");
+      if (leaves) {
+        setPendingLeaveCount(leaves.length);
+        const mappedLeaves = leaves.map((l: any, i: number) => ({
+          id: l.id || String(i),
+          name: l.employee_name || "Employee Request",
+          type: l.leave_type || "Leave Request",
+          dates: `${l.start_date || ""} to ${l.end_date || ""}`,
+          dept: l.department || "General"
+        }));
+        setPendingLeavesList(mappedLeaves.slice(0, 3));
+      }
+
+      // 3. Open Positions
+      const { data: jobs } = await supabase.from("job_postings").select("id");
+      if (jobs) {
+        setOpenPositions(jobs.length);
+      }
+
+      // 4. Attendance Rate
+      const { data: attendance } = await supabase.from("attendance_logs").select("status");
+      if (attendance && attendance.length > 0) {
+        const present = attendance.filter(a => a.status === "Present" || a.status === "On Time").length;
+        const rate = ((present / attendance.length) * 100).toFixed(1);
+        setAttendanceRate(`${rate}%`);
+      }
+
+      // 5. Payslips Cost
+      const { data: slips } = await supabase.from("payslips").select("net");
+      if (slips && slips.length > 0) {
+        const totalNet = slips.reduce((sum, s) => sum + (s.net || 0), 0);
+        setPayrollCost(`$${Math.round(totalNet / 1000)}K`);
+      }
+
+    } catch (err) {
+      console.error("Dashboard load error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+
+    // Subscribe to realtime updates on relevant tables
+    const channel = supabase
+      .channel("admin_dashboard_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "employees" },
+        () => { fetchDashboardData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leave_requests" },
+        () => { fetchDashboardData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "job_postings" },
+        () => { fetchDashboardData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_logs" },
+        () => { fetchDashboardData(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   if (loading) return <div className="p-6"><SkeletonKPI /></div>;
 
@@ -90,12 +202,12 @@ export default function AdminDashboardPage() {
 
       {/* KPI Row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard title="Total Employees" value="167" icon={Users} trend={{ value: 2.4, label: "+4 this month" }} iconBg="bg-purple-50" iconColor="text-primary" />
-        <StatCard title="Attendance Rate" value="96.2%" icon={CalendarCheck} trend={{ value: 0.8 }} iconBg="bg-emerald-50" iconColor="text-emerald-600" />
-        <StatCard title="Pending Leaves" value="5" icon={CalendarOff} trend={{ value: -12, label: "vs last week" }} iconBg="bg-amber-50" iconColor="text-amber-600" />
-        <StatCard title="Open Positions" value="12" icon={Briefcase} trend={{ value: 20 }} iconBg="bg-indigo-50" iconColor="text-secondary" />
-        <StatCard title="Payroll (Aug)" value="$412K" icon={CreditCard} trend={{ value: 1.1 }} iconBg="bg-sky-50" iconColor="text-sky-600" />
-        <StatCard title="Avg Performance" value="4.4 / 5" icon={TrendingUp} trend={{ value: 3.2 }} iconBg="bg-pink-50" iconColor="text-pink-600" />
+        <StatCard title="Total Employees" value={String(employeeCount)} icon={Users} trend={{ value: 2.4, label: "+4 this month" }} iconBg="bg-purple-50" iconColor="text-primary" />
+        <StatCard title="Attendance Rate" value={attendanceRate} icon={CalendarCheck} trend={{ value: 0.8 }} iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+        <StatCard title="Pending Leaves" value={String(pendingLeaveCount)} icon={CalendarOff} trend={{ value: -12, label: "vs last week" }} iconBg="bg-amber-50" iconColor="text-amber-600" />
+        <StatCard title="Open Positions" value={String(openPositions)} icon={Briefcase} trend={{ value: 20 }} iconBg="bg-indigo-50" iconColor="text-secondary" />
+        <StatCard title="Payroll (Aug)" value={payrollCost} icon={CreditCard} trend={{ value: 1.1 }} iconBg="bg-sky-50" iconColor="text-sky-600" />
+        <StatCard title="Avg Performance" value={avgPerformance} icon={TrendingUp} trend={{ value: 3.2 }} iconBg="bg-pink-50" iconColor="text-pink-600" />
       </div>
 
       {/* Charts Row */}
@@ -153,7 +265,7 @@ export default function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
           <BarChartWrapper
-            data={deptData}
+            data={deptDistribution}
             xKey="name"
             bars={[{ key: "count", color: "#6b21a8", label: "Employees" }]}
             height={200}
@@ -170,26 +282,30 @@ export default function AdminDashboardPage() {
               <CardTitle>Pending Approvals</CardTitle>
               <CardDescription>Leave requests awaiting your review</CardDescription>
             </div>
-            <Badge variant="warning">{pendingLeaves.length} pending</Badge>
+            <Badge variant="warning">{pendingLeaveCount} pending</Badge>
           </CardHeader>
           <CardContent className="space-y-3">
-            {pendingLeaves.map((leave) => (
-              <div key={leave.id} className="flex items-start justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-primary/30 transition-colors">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-800 truncate">{leave.name}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{leave.type} · {leave.dept}</p>
-                  <p className="text-[10px] text-primary font-semibold mt-1">{leave.dates}</p>
+            {pendingLeavesList.length > 0 ? (
+              pendingLeavesList.map((leave) => (
+                <div key={leave.id} className="flex items-start justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-primary/30 transition-colors">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-800 truncate">{leave.name}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{leave.type} · {leave.dept}</p>
+                    <p className="text-[10px] text-primary font-semibold mt-1">{leave.dates}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button className="p-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors cursor-pointer">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                    </button>
+                    <button className="p-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors cursor-pointer">
+                      <XCircle className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-1 shrink-0">
-                  <button className="p-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors cursor-pointer">
-                    <CheckCircle className="h-3.5 w-3.5" />
-                  </button>
-                  <button className="p-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors cursor-pointer">
-                    <XCircle className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="text-center py-6 text-xs text-slate-400 font-medium">No pending approvals.</div>
+            )}
             <Link href="/admin/leave">
               <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-1.5 mt-1 cursor-pointer">
                 <span>View all requests</span>
