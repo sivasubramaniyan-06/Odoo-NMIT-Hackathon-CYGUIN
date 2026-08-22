@@ -174,7 +174,7 @@ export default function AdminEmployeesPage() {
       toast({
         title: "No data to export",
         description: "There are no employee records matching your current search/filter criteria.",
-        variant: "destructive",
+        variant: "error",
       });
       return;
     }

@@ -162,16 +162,6 @@ export default function AdminPayrollPage() {
     return `$${val.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
-  // Payslips filtering state
-  const [payslipSearch, setPayslipSearch] = useState("");
-  const [payslipDeptFilter, setPayslipDeptFilter] = useState("");
-  const [payslipStatusFilter, setPayslipStatusFilter] = useState("");
-
-  // Reimbursements filtering state
-  const [reimbursementSearch, setReimbursementSearch] = useState("");
-  const [reimbursementStatusFilter, setReimbursementStatusFilter] = useState("");
-  const [reimbursementCategoryFilter, setReimbursementCategoryFilter] = useState("");
-
   const payslipDeptOptions = useMemo(() => {
     const depts = Array.from(new Set(payslips.map((p) => p.dept)));
     return [
@@ -260,8 +250,198 @@ export default function AdminPayrollPage() {
     toast({
       title: "Reimbursement rejected",
       description: `Reimbursement ${targetId} for ${targetName} has been rejected.`,
-      variant: "destructive",
+      variant: "error",
     });
+  };
+
+  const handleExportPayrollCSV = () => {
+    const listToExport = filteredPayslips.length > 0 ? filteredPayslips : payslips;
+
+    if (listToExport.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no payslip records available to export.",
+        variant: "error",
+      });
+      return;
+    }
+
+    const escapeCSVCell = (val: string | number | undefined | null): string => {
+      if (val === undefined || val === null) return '""';
+      const str = String(val);
+      if (/[",\n\r]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return `"${str}"`;
+    };
+
+    const headers = [
+      "Payslip ID",
+      "Employee Name",
+      "Department",
+      "Month",
+      "Gross Pay ($)",
+      "Net Paid ($)",
+      "Status",
+    ];
+
+    const rows = listToExport.map((slip) => [
+      escapeCSVCell(slip.id),
+      escapeCSVCell(slip.name),
+      escapeCSVCell(slip.dept),
+      escapeCSVCell(slip.month),
+      escapeCSVCell(slip.gross),
+      escapeCSVCell(slip.net),
+      escapeCSVCell(slip.status),
+    ]);
+
+    const csvContent = [headers.map((h) => `"${h}"`).join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const dateStr = runMonth || new Date().toISOString().split("T")[0];
+    const filename = `payroll-${dateStr}.csv`;
+
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Payroll exported",
+      description: `Payroll CSV downloaded successfully (${listToExport.length} record${listToExport.length > 1 ? "s" : ""}).`,
+      variant: "success",
+    });
+  };
+
+  const handlePrintPayslip = () => {
+    if (!selectedSlip) {
+      toast({
+        title: "No payslip selected",
+        description: "Please select a payslip statement to print.",
+        variant: "error",
+      });
+      return;
+    }
+
+    const deductions = selectedSlip.gross - selectedSlip.net + 800;
+
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    if (!printWindow) {
+      toast({
+        title: "Print popup blocked",
+        description: "Please allow popups to view and print the payslip statement.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Payslip - ${selectedSlip.name} (${selectedSlip.id})</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #0f172a; line-height: 1.5; }
+            .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .title { font-size: 24px; font-weight: 800; color: #1e293b; margin: 0; }
+            .subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+            .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; background-color: #dcfce7; color: #166534; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; font-size: 13px; }
+            .label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; }
+            .value { font-weight: 600; color: #334155; margin-top: 2px; }
+            .table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; }
+            .table th { text-align: left; padding: 10px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 11px; text-transform: uppercase; }
+            .table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; }
+            .text-right { text-align: right; }
+            .total-box { background: #faf5ff; border: 1px solid #f3e8ff; padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
+            .total-title { font-weight: 700; color: #581c87; font-size: 15px; }
+            .total-amount { font-size: 22px; font-weight: 800; color: #581c87; }
+            .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 16px; }
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1 class="title">Salary Statement</h1>
+              <p class="subtitle">Official Payroll Document</p>
+            </div>
+            <span class="badge">${selectedSlip.status}</span>
+          </div>
+
+          <div class="grid">
+            <div>
+              <div class="label">Employee Name</div>
+              <div class="value">${selectedSlip.name}</div>
+            </div>
+            <div>
+              <div class="label">Payslip ID</div>
+              <div class="value">${selectedSlip.id}</div>
+            </div>
+            <div>
+              <div class="label">Department</div>
+              <div class="value">${selectedSlip.dept}</div>
+            </div>
+            <div>
+              <div class="label">Pay Period</div>
+              <div class="value">${selectedSlip.month}</div>
+            </div>
+          </div>
+
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Base Salary</td>
+                <td class="text-right">$${selectedSlip.gross.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td>Allowances</td>
+                <td class="text-right" style="color: #059669;">+$800</td>
+              </tr>
+              <tr>
+                <td>Tax & Deductions</td>
+                <td class="text-right" style="color: #e11d48;">-$${deductions.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="total-box">
+            <span class="total-title">Net Paid Salary</span>
+            <span class="total-amount">$${selectedSlip.net.toLocaleString()}</span>
+          </div>
+
+          <div class="footer">
+            Generated on ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} · Confidential
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() {
+                window.close();
+              };
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   return (
@@ -271,7 +451,7 @@ export default function AdminPayrollPage() {
           <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Payroll Management</h1>
           <p className="text-xs text-slate-500 mt-1">Manage salary disbursements, payslips, and reimbursements</p>
         </div>
-        <Button variant="outline" size="sm" className="flex items-center gap-1.5 cursor-pointer">
+        <Button variant="outline" size="sm" onClick={handleExportPayrollCSV} className="flex items-center gap-1.5 cursor-pointer">
           <Download className="h-4 w-4" /><span>Export Payroll</span>
         </Button>
       </div>
@@ -580,7 +760,7 @@ export default function AdminPayrollPage() {
               <span className="font-extrabold text-lg text-purple-900">${selectedSlip.net.toLocaleString()}</span>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1 cursor-pointer flex items-center justify-center gap-1.5"><Download className="h-4 w-4" />Export PDF</Button>
+              <Button variant="outline" onClick={handlePrintPayslip} className="flex-1 cursor-pointer flex items-center justify-center gap-1.5"><Download className="h-4 w-4" />Export PDF</Button>
               <Button onClick={() => setSelectedSlip(null)} className="flex-1 cursor-pointer">Close</Button>
             </div>
           </div>
