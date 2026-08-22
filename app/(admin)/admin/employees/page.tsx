@@ -69,6 +69,9 @@ export default function AdminEmployeesPage() {
   const [newRole, setNewRole] = useState("");
   const [newDept, setNewDept] = useState("Engineering");
   const [newEmail, setNewEmail] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newLocation, setNewLocation] = useState("");
+  const [newStatus, setNewStatus] = useState("Active");
 
   const [editingEmployee, setEditingEmployee] = useState<typeof EMPLOYEES[0] | null>(null);
   const [editName, setEditName] = useState("");
@@ -153,16 +156,16 @@ export default function AdminEmployeesPage() {
       name: newName,
       role: newRole,
       dept: newDept,
-      status: "Active",
+      status: newStatus || "Active",
       email: newEmail,
-      phone: "+1 555-0000",
-      location: "Remote",
+      phone: newPhone || "+1 555-0000",
+      location: newLocation || "Remote",
       joined: new Date().toISOString().split("T")[0],
       avatar: newName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
     };
     setEmployees((prev) => [newEmp, ...prev]);
     setIsAddOpen(false);
-    setNewName(""); setNewRole(""); setNewEmail("");
+    setNewName(""); setNewRole(""); setNewEmail(""); setNewDept("Engineering"); setNewPhone(""); setNewLocation(""); setNewStatus("Active");
     toast({ title: "Employee added", description: `${newName} has been onboarded successfully.`, variant: "success" });
   };
 
@@ -324,7 +327,14 @@ export default function AdminEmployeesPage() {
           <Input label="Full Name" value={newName} onChange={(e) => setNewName(e.target.value)} required placeholder="e.g. Sarah Johnson" />
           <Input label="Job Title / Role" value={newRole} onChange={(e) => setNewRole(e.target.value)} required placeholder="e.g. Senior Engineer" />
           <Input label="Work Email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required placeholder="e.g. sarah@acme.com" />
-          <Select label="Department" options={DEPT_OPTIONS.filter((d) => d.value)} value={newDept} onChange={(e) => setNewDept(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Department" options={DEPT_OPTIONS.filter((d) => d.value)} value={newDept} onChange={(e) => setNewDept(e.target.value)} />
+            <Select label="Status" options={STATUS_OPTIONS.filter((s) => s.value)} value={newStatus} onChange={(e) => setNewStatus(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Phone Number" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="e.g. +1 555-0100" />
+            <Input label="Location" value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="e.g. San Francisco" />
+          </div>
           <div className="flex gap-3 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)} className="flex-1 cursor-pointer">Cancel</Button>
             <Button type="submit" className="flex-1 cursor-pointer">Add Employee</Button>
