@@ -24,6 +24,18 @@ interface Candidate {
   notes?: string;
 }
 
+interface Interview {
+  id: string;
+  candidate: string;
+  role: string;
+  date: string;
+  time?: string;
+  interviewer: string;
+  type: string;
+  status: "Scheduled" | "In Progress" | "Completed";
+  notes?: string;
+}
+
 const TABS = [
   { label: "Job Postings", value: "jobs" },
   { label: "Pipeline", value: "pipeline" },
@@ -56,10 +68,10 @@ const initialPipeline: Record<string, Candidate[]> = {
   ],
 };
 
-const interviews = [
-  { id: "I01", candidate: "Dan Kim", role: "Senior Frontend Eng", date: "Aug 23, 10:00 AM", interviewer: "Jordan Kim", type: "Technical", status: "Scheduled" },
-  { id: "I02", candidate: "Nina Patel", role: "Senior Frontend Eng", date: "Aug 24, 2:00 PM", interviewer: "Ana Patel", type: "Portfolio Review", status: "Scheduled" },
-  { id: "I03", candidate: "Tom Walsh", role: "DevOps Engineer", date: "Aug 22, 11:00 AM", interviewer: "Sam Taylor", type: "Phone Screen", status: "Completed" },
+const initialInterviews: Interview[] = [
+  { id: "I01", candidate: "Dan Kim", role: "Senior Frontend Eng", date: "Aug 23, 10:00 AM", interviewer: "Jordan Kim", type: "Technical", status: "Scheduled", notes: "Focus on React performance and state management." },
+  { id: "I02", candidate: "Nina Patel", role: "Senior Frontend Eng", date: "Aug 24, 2:00 PM", interviewer: "Ana Patel", type: "Portfolio Review", status: "Scheduled", notes: "Review previous component library architecture." },
+  { id: "I03", candidate: "Tom Walsh", role: "DevOps Engineer", date: "Aug 22, 11:00 AM", interviewer: "Sam Taylor", type: "Phone Screen", status: "Completed", notes: "Passed screening call with strong DevOps credentials." },
 ];
 
 const pipelineStages = ["Applied", "Screening", "Interview", "Offer Sent"] as const;
@@ -84,6 +96,19 @@ export default function AdminRecruitmentPage() {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [candidateStage, setCandidateStage] = useState<"Applied" | "Screening" | "Interview" | "Offer Sent">("Applied");
   const [candidateNotes, setCandidateNotes] = useState<string>("");
+
+  // Interview Management State
+  const [interviewList, setInterviewList] = useState<Interview[]>(initialInterviews);
+  const [ivCandidate, setIvCandidate] = useState("");
+  const [ivRole, setIvRole] = useState("");
+  const [ivDate, setIvDate] = useState("");
+  const [ivTime, setIvTime] = useState("");
+  const [ivInterviewer, setIvInterviewer] = useState("");
+  const [ivType, setIvType] = useState("Technical");
+
+  // Interview Notes Modal State
+  const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
+  const [editingNotes, setEditingNotes] = useState("");
 
   const filteredJobs = jobs.filter(
     (j) =>
@@ -189,6 +214,86 @@ export default function AdminRecruitmentPage() {
     });
   };
 
+  const handleScheduleInterview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ivCandidate.trim() || !ivRole.trim() || !ivDate || !ivTime || !ivInterviewer.trim()) {
+      toast({
+        title: "Validation error",
+        description: "Please fill in all required interview details.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    const dateObj = new Date(`${ivDate}T${ivTime}`);
+    const formattedDate = isNaN(dateObj.getTime())
+      ? `${ivDate}, ${ivTime}`
+      : `${dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${dateObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+
+    const newInterview: Interview = {
+      id: `I0${interviewList.length + 1}`,
+      candidate: ivCandidate.trim(),
+      role: ivRole.trim(),
+      date: formattedDate,
+      time: ivTime,
+      interviewer: ivInterviewer.trim(),
+      type: ivType,
+      status: "Scheduled",
+      notes: "",
+    };
+
+    setInterviewList((prev) => [newInterview, ...prev]);
+    setIsInterviewOpen(false);
+    setIvCandidate("");
+    setIvRole("");
+    setIvDate("");
+    setIvTime("");
+    setIvInterviewer("");
+    setIvType("Technical");
+
+    toast({
+      title: "Interview scheduled",
+      description: `Interview for ${newInterview.candidate} has been scheduled.`,
+      variant: "success",
+    });
+  };
+
+  const handleAdvanceInterviewStatus = (id: string) => {
+    setInterviewList((prev) =>
+      prev.map((iv) => {
+        if (iv.id !== id) return iv;
+        const nextStatus = iv.status === "Scheduled" ? "In Progress" : "Completed";
+        toast({
+          title: nextStatus === "In Progress" ? "Interview started" : "Interview completed",
+          description: `${iv.candidate}'s interview is now ${nextStatus.toLowerCase()}.`,
+          variant: "success",
+        });
+        return { ...iv, status: nextStatus };
+      })
+    );
+  };
+
+  const handleOpenInterviewNotes = (iv: Interview) => {
+    setSelectedInterview(iv);
+    setEditingNotes(iv.notes || "");
+  };
+
+  const handleSaveInterviewNotes = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInterview) return;
+
+    setInterviewList((prev) =>
+      prev.map((iv) => (iv.id === selectedInterview.id ? { ...iv, notes: editingNotes.trim() } : iv))
+    );
+
+    setSelectedInterview(null);
+    toast({
+      title: "Interview notes updated",
+      description: "Evaluation notes have been saved successfully.",
+      variant: "success",
+    });
+  };
+
   const statusVariant: Record<string, "success" | "warning" | "danger" | "secondary"> = {
     Active: "success", Paused: "warning", Closed: "danger",
   };
@@ -213,7 +318,7 @@ export default function AdminRecruitmentPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Active Positions" value={jobs.filter((j) => j.status === "Active").length.toString()} icon={Briefcase} iconBg="bg-purple-50" iconColor="text-primary" trend={{ value: 33 }} />
         <StatCard title="Total Applicants" value={jobs.reduce((acc, j) => acc + j.applicants, 0).toString()} icon={Users} iconBg="bg-sky-50" iconColor="text-sky-600" trend={{ value: 15 }} />
-        <StatCard title="Interviews This Week" value="5" icon={Calendar} iconBg="bg-amber-50" iconColor="text-amber-600" />
+        <StatCard title="Interviews This Week" value={interviewList.length.toString()} icon={Calendar} iconBg="bg-amber-50" iconColor="text-amber-600" />
         <StatCard title="Offer Acceptance Rate" value="78%" icon={Star} iconBg="bg-emerald-50" iconColor="text-emerald-600" />
       </div>
 
@@ -341,25 +446,39 @@ export default function AdminRecruitmentPage() {
 
       {tab === "interviews" && (
         <div className="space-y-4">
-          {interviews.map((iv) => (
+          {interviewList.map((iv) => (
             <Card key={iv.id} className="hover:shadow-md transition-shadow">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-bold text-slate-800">{iv.candidate}</p>
                     <Badge variant="secondary">{iv.type}</Badge>
-                    <Badge variant={iv.status === "Completed" ? "success" : "info"}>{iv.status}</Badge>
+                    <Badge variant={iv.status === "Completed" ? "success" : iv.status === "In Progress" ? "warning" : "info"}>
+                      {iv.status}
+                    </Badge>
                   </div>
                   <p className="text-xs text-slate-500 mt-1">{iv.role}</p>
                   <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-400">
                     <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{iv.date}</span>
                     <span className="flex items-center gap-1"><Users className="h-3 w-3" />Interviewer: {iv.interviewer}</span>
                   </div>
+                  {iv.notes && (
+                    <p className="text-xs text-slate-500 italic mt-2 border-t pt-2 line-clamp-2">"{iv.notes}"</p>
+                  )}
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <Button size="sm" variant="outline" className="cursor-pointer">View Notes</Button>
+                  <Button size="sm" variant="outline" onClick={() => handleOpenInterviewNotes(iv)} className="cursor-pointer">
+                    View Notes
+                  </Button>
                   {iv.status === "Scheduled" && (
-                    <Button size="sm" className="cursor-pointer">Start Interview</Button>
+                    <Button size="sm" onClick={() => handleAdvanceInterviewStatus(iv.id)} className="cursor-pointer">
+                      Start Interview
+                    </Button>
+                  )}
+                  {iv.status === "In Progress" && (
+                    <Button size="sm" onClick={() => handleAdvanceInterviewStatus(iv.id)} className="bg-emerald-600 hover:bg-emerald-700 cursor-pointer">
+                      Complete Interview
+                    </Button>
                   )}
                 </div>
               </div>
@@ -460,19 +579,93 @@ export default function AdminRecruitmentPage() {
 
       {/* Schedule Interview Modal */}
       <Modal isOpen={isInterviewOpen} onClose={() => setIsInterviewOpen(false)} title="Schedule Interview">
-        <form onSubmit={(e) => { e.preventDefault(); setIsInterviewOpen(false); toast({ title: "Interview scheduled", variant: "success" }); }} className="space-y-4">
-          <Input label="Candidate Name" placeholder="e.g. Dan Kim" required />
-          <Input label="Position" placeholder="e.g. Senior Frontend Engineer" required />
+        <form onSubmit={handleScheduleInterview} className="space-y-4">
+          <Input
+            label="Candidate Name"
+            value={ivCandidate}
+            onChange={(e) => setIvCandidate(e.target.value)}
+            placeholder="e.g. Dan Kim"
+            required
+          />
+          <Input
+            label="Position"
+            value={ivRole}
+            onChange={(e) => setIvRole(e.target.value)}
+            placeholder="e.g. Senior Frontend Engineer"
+            required
+          />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Date" type="date" required />
-            <Input label="Time" type="time" required />
+            <Input
+              label="Date"
+              type="date"
+              value={ivDate}
+              onChange={(e) => setIvDate(e.target.value)}
+              required
+            />
+            <Input
+              label="Time"
+              type="time"
+              value={ivTime}
+              onChange={(e) => setIvTime(e.target.value)}
+              required
+            />
           </div>
-          <Input label="Interviewer" placeholder="e.g. Jordan Kim" required />
+          <Input
+            label="Interviewer"
+            value={ivInterviewer}
+            onChange={(e) => setIvInterviewer(e.target.value)}
+            placeholder="e.g. Jordan Kim"
+            required
+          />
+          <Select
+            label="Interview Type"
+            options={[
+              { value: "Technical", label: "Technical" },
+              { value: "Portfolio Review", label: "Portfolio Review" },
+              { value: "Phone Screen", label: "Phone Screen" },
+              { value: "HR Culture", label: "HR Culture" },
+            ]}
+            value={ivType}
+            onChange={(e) => setIvType(e.target.value)}
+          />
           <div className="flex gap-3 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => setIsInterviewOpen(false)} className="flex-1 cursor-pointer">Cancel</Button>
             <Button type="submit" className="flex-1 cursor-pointer">Schedule</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* View/Edit Interview Notes Modal */}
+      <Modal isOpen={selectedInterview !== null} onClose={() => setSelectedInterview(null)} title="Interview Notes">
+        {selectedInterview && (
+          <form onSubmit={handleSaveInterviewNotes} className="space-y-4">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs">
+              <div className="flex justify-between items-center">
+                <p className="font-bold text-slate-800 text-sm">{selectedInterview.candidate}</p>
+                <Badge variant={selectedInterview.status === "Completed" ? "success" : selectedInterview.status === "In Progress" ? "warning" : "info"}>
+                  {selectedInterview.status}
+                </Badge>
+              </div>
+              <p className="text-slate-500">{selectedInterview.role} · {selectedInterview.type}</p>
+              <p className="text-slate-400">{selectedInterview.date} · Interviewer: {selectedInterview.interviewer}</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Evaluation Notes</label>
+              <textarea
+                value={editingNotes}
+                onChange={(e) => setEditingNotes(e.target.value)}
+                className="w-full min-h-[100px] rounded-lg border border-border p-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="No interview notes have been added yet. Add feedback here..."
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => setSelectedInterview(null)} className="flex-1 cursor-pointer">Cancel</Button>
+              <Button type="submit" className="flex-1 cursor-pointer">Save Notes</Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );
