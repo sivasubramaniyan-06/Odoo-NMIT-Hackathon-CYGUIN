@@ -14,6 +14,16 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { Briefcase, Users, Calendar, FileText, Plus, Star, Clock, ChevronRight } from "lucide-react";
 
+interface Candidate {
+  id: string;
+  name: string;
+  role: string;
+  score: number;
+  avatar: string;
+  stage: "Applied" | "Screening" | "Interview" | "Offer Sent";
+  notes?: string;
+}
+
 const TABS = [
   { label: "Job Postings", value: "jobs" },
   { label: "Pipeline", value: "pipeline" },
@@ -28,21 +38,21 @@ const jobPostings = [
   { id: "J005", title: "Content Marketing Manager", dept: "Marketing", location: "Remote", applicants: 33, status: "Closed", posted: "Jul 01" },
 ];
 
-const pipeline = {
+const initialPipeline: Record<string, Candidate[]> = {
   Applied: [
-    { name: "Lena Park", role: "Frontend Eng", score: 82, avatar: "LP" },
-    { name: "Raj Sharma", role: "Frontend Eng", score: 76, avatar: "RS" },
-    { name: "Amy Chen", role: "Designer", score: 88, avatar: "AC" },
+    { id: "C101", name: "Lena Park", role: "Frontend Eng", score: 82, avatar: "LP", stage: "Applied", notes: "Strong React background, good communication." },
+    { id: "C102", name: "Raj Sharma", role: "Frontend Eng", score: 76, avatar: "RS", stage: "Applied", notes: "Needs technical assessment review." },
+    { id: "C103", name: "Amy Chen", role: "Designer", score: 88, avatar: "AC", stage: "Applied", notes: "Impressive Figma portfolio." },
   ],
   Screening: [
-    { name: "Tom Walsh", role: "DevOps", score: 79, avatar: "TW" },
-    { name: "Nina Patel", role: "Frontend Eng", score: 91, avatar: "NP" },
+    { id: "C104", name: "Tom Walsh", role: "DevOps", score: 79, avatar: "TW", stage: "Screening", notes: "Kubernetes & AWS experience." },
+    { id: "C105", name: "Nina Patel", role: "Frontend Eng", score: 91, avatar: "NP", stage: "Screening", notes: "High algorithm score, schedule tech round." },
   ],
   Interview: [
-    { name: "Dan Kim", role: "Frontend Eng", score: 85, avatar: "DK" },
+    { id: "C106", name: "Dan Kim", role: "Frontend Eng", score: 85, avatar: "DK", stage: "Interview", notes: "Technical interview scheduled for Aug 23." },
   ],
   "Offer Sent": [
-    { name: "Sarah Miller", role: "Designer", score: 94, avatar: "SM" },
+    { id: "C107", name: "Sarah Miller", role: "Designer", score: 94, avatar: "SM", stage: "Offer Sent", notes: "Offer letter issued on Aug 20." },
   ],
 };
 
@@ -68,6 +78,12 @@ export default function AdminRecruitmentPage() {
   const [jobDept, setJobDept] = useState("Engineering");
   const [jobLocation, setJobLocation] = useState("");
   const [jobDescription, setJobDescription] = useState("");
+
+  // Candidate Pipeline State
+  const [pipelineData, setPipelineData] = useState<Record<string, Candidate[]>>(initialPipeline);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [candidateStage, setCandidateStage] = useState<"Applied" | "Screening" | "Interview" | "Offer Sent">("Applied");
+  const [candidateNotes, setCandidateNotes] = useState<string>("");
 
   const filteredJobs = jobs.filter(
     (j) =>
@@ -126,6 +142,51 @@ export default function AdminRecruitmentPage() {
         return { ...j, status: nextStatus };
       })
     );
+  };
+
+  const handleOpenCandidateModal = (c: Candidate) => {
+    setSelectedCandidate(c);
+    setCandidateStage(c.stage);
+    setCandidateNotes(c.notes || "");
+  };
+
+  const handleSaveCandidate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCandidate) return;
+
+    const currentStage = selectedCandidate.stage;
+    const newStage = candidateStage;
+    const updatedNotes = candidateNotes.trim();
+
+    setPipelineData((prev) => {
+      const updated = { ...prev };
+
+      // Remove from current stage
+      updated[currentStage] = (updated[currentStage] || []).filter(
+        (c) => c.id !== selectedCandidate.id && c.name !== selectedCandidate.name
+      );
+
+      // Create updated candidate object
+      const updatedCandidate: Candidate = {
+        ...selectedCandidate,
+        stage: newStage,
+        notes: updatedNotes,
+      };
+
+      // Append to new stage
+      updated[newStage] = [...(updated[newStage] || []), updatedCandidate];
+
+      return updated;
+    });
+
+    const candidateName = selectedCandidate.name;
+    setSelectedCandidate(null);
+
+    toast({
+      title: "Candidate stage updated",
+      description: `${candidateName} moved to ${newStage}.`,
+      variant: "success",
+    });
   };
 
   const statusVariant: Record<string, "success" | "warning" | "danger" | "secondary"> = {
@@ -230,35 +291,51 @@ export default function AdminRecruitmentPage() {
 
       {tab === "pipeline" && (
         <div className="grid gap-4 lg:grid-cols-4">
-          {pipelineStages.map((stage, si) => (
-            <div key={stage} className={`rounded-xl border-2 ${stageColors[si]} p-4 space-y-3`}>
-              <div className="flex justify-between items-center">
-                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{stage}</h3>
-                <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold text-slate-600 border">
-                  {pipeline[stage]?.length ?? 0}
-                </span>
-              </div>
-              {(pipeline[stage] ?? []).map((c) => (
-                <div key={c.name} className="bg-card rounded-xl p-3 border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                      {c.avatar}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">{c.name}</p>
-                      <p className="text-[10px] text-slate-500">{c.role}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-slate-400">Match Score</span>
-                    <span className={`text-[10px] font-bold ${c.score >= 85 ? "text-emerald-600" : c.score >= 75 ? "text-amber-600" : "text-rose-600"}`}>
-                      {c.score}%
-                    </span>
-                  </div>
+          {pipelineStages.map((stage, si) => {
+            const stageCandidates = pipelineData[stage] ?? [];
+            return (
+              <div key={stage} className={`rounded-xl border-2 ${stageColors[si]} p-4 space-y-3`}>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{stage}</h3>
+                  <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold text-slate-600 border">
+                    {stageCandidates.length}
+                  </span>
                 </div>
-              ))}
-            </div>
-          ))}
+                {stageCandidates.length === 0 ? (
+                  <div className="p-4 text-center rounded-xl bg-white/60 border border-dashed border-slate-200">
+                    <p className="text-xs text-slate-400 font-medium">No candidates in {stage}</p>
+                  </div>
+                ) : (
+                  stageCandidates.map((c) => (
+                    <div
+                      key={c.id || c.name}
+                      onClick={() => handleOpenCandidateModal(c)}
+                      className="bg-card rounded-xl p-3 border border-border shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-pointer space-y-2 group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                          {c.avatar}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-slate-800 group-hover:text-primary transition-colors truncate">{c.name}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{c.role}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-slate-400">Match Score</span>
+                        <span className={`text-[10px] font-bold ${c.score >= 85 ? "text-emerald-600" : c.score >= 75 ? "text-amber-600" : "text-rose-600"}`}>
+                          {c.score}%
+                        </span>
+                      </div>
+                      {c.notes && (
+                        <p className="text-[10px] text-slate-500 italic border-t pt-1.5 line-clamp-2">"{c.notes}"</p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -290,6 +367,51 @@ export default function AdminRecruitmentPage() {
           ))}
         </div>
       )}
+
+      {/* Candidate Details & Stage Movement Modal */}
+      <Modal isOpen={selectedCandidate !== null} onClose={() => setSelectedCandidate(null)} title="Candidate Details & Stage">
+        {selectedCandidate && (
+          <form onSubmit={handleSaveCandidate} className="space-y-4">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white text-xs font-bold shrink-0">
+                {selectedCandidate.avatar}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-900">{selectedCandidate.name}</p>
+                <p className="text-xs text-slate-500">{selectedCandidate.role}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 block">Match Score</span>
+                <span className={`text-xs font-extrabold ${selectedCandidate.score >= 85 ? "text-emerald-600" : selectedCandidate.score >= 75 ? "text-amber-600" : "text-rose-600"}`}>
+                  {selectedCandidate.score}%
+                </span>
+              </div>
+            </div>
+
+            <Select
+              label="Pipeline Stage"
+              options={pipelineStages.map((s) => ({ value: s, label: s }))}
+              value={candidateStage}
+              onChange={(e) => setCandidateStage(e.target.value as any)}
+            />
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Candidate Notes</label>
+              <textarea
+                value={candidateNotes}
+                onChange={(e) => setCandidateNotes(e.target.value)}
+                className="w-full min-h-[90px] rounded-lg border border-border p-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="Add evaluation notes, interview feedback, or comments..."
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => setSelectedCandidate(null)} className="flex-1 cursor-pointer">Cancel</Button>
+              <Button type="submit" className="flex-1 cursor-pointer">Save Changes</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       {/* Post Job Modal */}
       <Modal isOpen={isJobOpen} onClose={() => setIsJobOpen(false)} title="Create Job Posting">
