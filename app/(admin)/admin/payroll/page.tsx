@@ -162,16 +162,6 @@ export default function AdminPayrollPage() {
     return `$${val.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
-  // Payslips filtering state
-  const [payslipSearch, setPayslipSearch] = useState("");
-  const [payslipDeptFilter, setPayslipDeptFilter] = useState("");
-  const [payslipStatusFilter, setPayslipStatusFilter] = useState("");
-
-  // Reimbursements filtering state
-  const [reimbursementSearch, setReimbursementSearch] = useState("");
-  const [reimbursementStatusFilter, setReimbursementStatusFilter] = useState("");
-  const [reimbursementCategoryFilter, setReimbursementCategoryFilter] = useState("");
-
   const payslipDeptOptions = useMemo(() => {
     const depts = Array.from(new Set(payslips.map((p) => p.dept)));
     return [
@@ -260,7 +250,7 @@ export default function AdminPayrollPage() {
     toast({
       title: "Reimbursement rejected",
       description: `Reimbursement ${targetId} for ${targetName} has been rejected.`,
-      variant: "destructive",
+      variant: "error",
     });
   };
 
