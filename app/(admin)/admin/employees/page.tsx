@@ -1,456 +1,275 @@
 "use client";
 
-import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/Card";
+import React, { useState, useMemo } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { Select } from "@/components/ui/Select";
+import { Tabs } from "@/components/ui/Tabs";
+import { Pagination } from "@/components/ui/Pagination";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Modal } from "@/components/ui/Modal";
+import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 import {
-  Users,
-  Search,
-  Filter,
-  UserPlus,
-  GitFork,
-  Eye,
-  Edit2,
-  Trash2,
-  Building,
-  Mail,
-  Phone,
-  Briefcase,
-  Calendar,
-  DollarSign,
-  ChevronRight,
+  Plus, Download, LayoutGrid, List, Edit, Trash2, Eye,
+  Mail, Phone, MapPin, Users,
 } from "lucide-react";
+import Link from "next/link";
 
-// Mock employee roster
-const initialEmployees = [
-  { id: "EMP-101", name: "Jane Cooper", email: "jane.cooper@company.com", phone: "+1 555-0192", department: "Engineering", role: "VP of Engineering", joined: "2023-04-12", status: "ACTIVE", salary: 165000, manager: "CEO" },
-  { id: "EMP-102", name: "Cody Fisher", email: "cody.fisher@company.com", phone: "+1 555-0193", department: "Engineering", role: "Engineering Manager", joined: "2023-09-01", status: "ACTIVE", salary: 130000, manager: "Jane Cooper" },
-  { id: "EMP-103", name: "Esther Howard", email: "esther.howard@company.com", phone: "+1 555-0194", department: "Product Management", role: "Director of Product", joined: "2024-01-15", status: "ACTIVE", salary: 155000, manager: "CEO" },
-  { id: "EMP-104", name: "Ronald Richards", email: "ronald.richards@company.com", phone: "+1 555-0195", department: "Engineering", role: "Senior Developer", joined: "2024-02-18", status: "ACTIVE", salary: 110000, manager: "Cody Fisher" },
-  { id: "EMP-105", name: "Albert Flores", email: "albert.flores@company.com", phone: "+1 555-0196", department: "Human Resources", role: "HR Manager", joined: "2022-11-05", status: "ACTIVE", salary: 95000, manager: "CEO" },
-  { id: "EMP-106", name: "Savannah Webb", email: "savannah.webb@company.com", phone: "+1 555-0197", department: "Sales & Marketing", role: "Marketing Lead", joined: "2023-11-10", status: "SUSPENDED", salary: 85000, manager: "CEO" },
-  { id: "EMP-107", name: "Jenny Wilson", email: "jenny.wilson@company.com", phone: "+1 555-0198", department: "Product Management", role: "Senior Product Manager", joined: "2024-03-01", status: "ACTIVE", salary: 125000, manager: "Esther Howard" },
+const EMPLOYEES = [
+  { id: "EMP-001", name: "Jordan Kim", role: "Lead Engineer", dept: "Engineering", status: "Active", email: "jordan@acme.com", phone: "+1 555-0101", location: "San Francisco", joined: "2022-03-15", avatar: "JK" },
+  { id: "EMP-002", name: "Ana Patel", role: "Product Designer", dept: "Design", status: "Active", email: "ana@acme.com", phone: "+1 555-0102", location: "New York", joined: "2023-01-10", avatar: "AP" },
+  { id: "EMP-003", name: "Chen Wei", role: "Sales Director", dept: "Sales", status: "Active", email: "chen@acme.com", phone: "+1 555-0103", location: "Chicago", joined: "2021-06-01", avatar: "CW" },
+  { id: "EMP-004", name: "Maria Santos", role: "Marketing Manager", dept: "Marketing", status: "Active", email: "maria@acme.com", phone: "+1 555-0104", location: "Los Angeles", joined: "2022-09-20", avatar: "MS" },
+  { id: "EMP-005", name: "James Liu", role: "Senior Engineer", dept: "Engineering", status: "On Leave", email: "james@acme.com", phone: "+1 555-0105", location: "Austin", joined: "2023-03-01", avatar: "JL" },
+  { id: "EMP-006", name: "Priya Mehta", role: "HR Specialist", dept: "HR", status: "Active", email: "priya@acme.com", phone: "+1 555-0106", location: "Boston", joined: "2023-07-15", avatar: "PM" },
+  { id: "EMP-007", name: "David Brown", role: "Finance Analyst", dept: "Finance", status: "Active", email: "david@acme.com", phone: "+1 555-0107", location: "Seattle", joined: "2022-11-01", avatar: "DB" },
+  { id: "EMP-008", name: "Lisa Chen", role: "Operations Lead", dept: "Operations", status: "Inactive", email: "lisa@acme.com", phone: "+1 555-0108", location: "Denver", joined: "2021-02-14", avatar: "LC" },
+  { id: "EMP-009", name: "Alex Rivera", role: "Senior UI Designer", dept: "Design", status: "Active", email: "alex@acme.com", phone: "+1 555-0109", location: "San Francisco", joined: "2024-03-01", avatar: "AR" },
+  { id: "EMP-010", name: "Sam Taylor", role: "DevOps Engineer", dept: "Engineering", status: "Active", email: "sam@acme.com", phone: "+1 555-0110", location: "Portland", joined: "2023-08-15", avatar: "ST" },
+  { id: "EMP-011", name: "Nora Walsh", role: "Content Strategist", dept: "Marketing", status: "Active", email: "nora@acme.com", phone: "+1 555-0111", location: "Miami", joined: "2024-01-20", avatar: "NW" },
+  { id: "EMP-012", name: "Kevin Park", role: "Backend Engineer", dept: "Engineering", status: "Active", email: "kevin@acme.com", phone: "+1 555-0112", location: "Atlanta", joined: "2023-05-10", avatar: "KP" },
 ];
 
-export default function EmployeeManagementPage() {
-  const [employees, setEmployees] = useState(initialEmployees);
-  const [activeTab, setActiveTab] = useState<"directory" | "org-chart">("directory");
+const DEPT_OPTIONS = [
+  { value: "", label: "All Departments" },
+  { value: "Engineering", label: "Engineering" },
+  { value: "Design", label: "Design" },
+  { value: "Sales", label: "Sales" },
+  { value: "Marketing", label: "Marketing" },
+  { value: "HR", label: "HR" },
+  { value: "Finance", label: "Finance" },
+  { value: "Operations", label: "Operations" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "", label: "All Statuses" },
+  { value: "Active", label: "Active" },
+  { value: "On Leave", label: "On Leave" },
+  { value: "Inactive", label: "Inactive" },
+];
+
+const PAGE_SIZE = 8;
+const gradients = ["from-purple-500 to-indigo-600", "from-indigo-500 to-cyan-600", "from-pink-500 to-rose-600", "from-emerald-500 to-teal-600", "from-amber-500 to-orange-600"];
+
+export default function AdminEmployeesPage() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
-  const [deptFilter, setDeptFilter] = useState("all");
-
-  // Drawer/Modal States
-  const [selectedEmp, setSelectedEmp] = useState<typeof initialEmployees[0] | null>(null);
+  const [dept, setDept] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [view, setView] = useState("table");
+  const [page, setPage] = useState(1);
+  const [employees, setEmployees] = useState(EMPLOYEES);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState("");
+  const [newDept, setNewDept] = useState("Engineering");
+  const [newEmail, setNewEmail] = useState("");
 
-  // Form States (for simple stubbing)
-  const [formName, setFormName] = useState("");
-  const [formEmail, setFormEmail] = useState("");
-  const [formDept, setFormDept] = useState("Engineering");
-  const [formRole, setFormRole] = useState("");
+  const filtered = useMemo(() => {
+    return employees.filter((e) => {
+      const matchSearch = !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.role.toLowerCase().includes(search.toLowerCase()) || e.email.toLowerCase().includes(search.toLowerCase());
+      const matchDept = !dept || e.dept === dept;
+      const matchStatus = !statusFilter || e.status === statusFilter;
+      return matchSearch && matchDept && matchStatus;
+    });
+  }, [employees, search, dept, statusFilter]);
 
-  const filteredEmployees = employees.filter((emp) => {
-    const matchesSearch = emp.name.toLowerCase().includes(search.toLowerCase()) || emp.id.toLowerCase().includes(search.toLowerCase());
-    const matchesDept = deptFilter === "all" || emp.department === deptFilter;
-    return matchesSearch && matchesDept;
-  });
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const handleAddSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newEmp = {
-      id: `EMP-${100 + employees.length + 1}`,
-      name: formName,
-      email: formEmail,
-      phone: "+1 555-9999",
-      department: formDept,
-      role: formRole,
-      joined: new Date().toISOString().split("T")[0],
-      status: "ACTIVE" as const,
-      salary: 90000,
-      manager: "CEO",
-    };
-    setEmployees([...employees, newEmp]);
-    setIsAddOpen(false);
-    // Reset Form
-    setFormName("");
-    setFormEmail("");
-    setFormRole("");
+  const handleDelete = () => {
+    setEmployees((prev) => prev.filter((e) => e.id !== deleteTarget));
+    setDeleteTarget(null);
+    toast({ title: "Employee removed", description: "The employee record has been deleted.", variant: "success" });
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEmp) return;
-    setEmployees(
-      employees.map((emp) =>
-        emp.id === selectedEmp.id
-          ? { ...emp, name: formName, email: formEmail, department: formDept, role: formRole }
-          : emp
-      )
-    );
-    setIsEditOpen(false);
+    if (!newName || !newRole || !newEmail) return;
+    const newEmp = {
+      id: `EMP-0${employees.length + 1}`,
+      name: newName,
+      role: newRole,
+      dept: newDept,
+      status: "Active",
+      email: newEmail,
+      phone: "+1 555-0000",
+      location: "Remote",
+      joined: new Date().toISOString().split("T")[0],
+      avatar: newName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
+    };
+    setEmployees((prev) => [newEmp, ...prev]);
+    setIsAddOpen(false);
+    setNewName(""); setNewRole(""); setNewEmail("");
+    toast({ title: "Employee added", description: `${newName} has been onboarded successfully.`, variant: "success" });
+  };
+
+  const statusVariant: Record<string, "success" | "warning" | "danger" | "secondary"> = {
+    Active: "success", "On Leave": "warning", Inactive: "danger",
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Page Header */}
+    <div className="p-4 md:p-6 space-y-6">
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-            Employee Administration
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Access staff listings, reporting structures, and onboard new colleagues.
-          </p>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Employee Directory</h1>
+          <p className="text-xs text-slate-500 mt-1">{employees.length} employees across {DEPT_OPTIONS.length - 1} departments</p>
         </div>
-        <div className="flex gap-3">
-          <Button onClick={() => setIsAddOpen(true)} className="flex items-center gap-2 cursor-pointer">
-            <UserPlus className="h-4 w-4" />
-            <span>Onboard Employee</span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="flex items-center gap-1.5 cursor-pointer">
+            <Download className="h-4 w-4" /><span className="hidden sm:inline">Export</span>
+          </Button>
+          <Button size="sm" onClick={() => setIsAddOpen(true)} className="flex items-center gap-1.5 cursor-pointer">
+            <Plus className="h-4 w-4" /><span>Add Employee</span>
           </Button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border">
-        <button
-          onClick={() => setActiveTab("directory")}
-          className={`flex items-center gap-2 py-3 px-5 text-sm font-semibold border-b-2 cursor-pointer transition-colors ${
-            activeTab === "directory"
-              ? "border-primary text-primary"
-              : "border-transparent text-slate-500 hover:text-slate-900"
-          }`}
-        >
-          <Users className="h-4 w-4" />
-          <span>Employee Directory</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("org-chart")}
-          className={`flex items-center gap-2 py-3 px-5 text-sm font-semibold border-b-2 cursor-pointer transition-colors ${
-            activeTab === "org-chart"
-              ? "border-primary text-primary"
-              : "border-transparent text-slate-500 hover:text-slate-900"
-          }`}
-        >
-          <GitFork className="h-4 w-4" />
-          <span>Organization Chart</span>
-        </button>
-      </div>
-
-      {/* Directory Tab Content */}
-      {activeTab === "directory" && (
-        <div className="space-y-4">
-          {/* Filters Bar */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between bg-card p-4 rounded-xl border border-border">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by name, ID or role..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-border bg-slate-50/50 py-2.5 pl-9 pr-3 text-xs focus:bg-card focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-              />
-            </div>
-            <div className="flex gap-2">
-              <div className="relative">
-                <select
-                  value={deptFilter}
-                  onChange={(e) => setDeptFilter(e.target.value)}
-                  className="rounded-lg border border-border bg-card py-2.5 px-3 text-xs focus:ring-1 focus:ring-primary focus:border-primary outline-none shadow-sm cursor-pointer"
-                >
-                  <option value="all">All Departments</option>
-                  <option value="Engineering">Engineering</option>
-                  <option value="Product Management">Product Management</option>
-                  <option value="Human Resources">Human Resources</option>
-                  <option value="Sales & Marketing">Sales & Marketing</option>
-                </select>
-              </div>
-            </div>
+      {/* Filters */}
+      <Card className="p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <SearchBar placeholder="Search by name, role, or email..." value={search} onChange={(v) => { setSearch(v); setPage(1); }} className="flex-1" />
+          <Select options={DEPT_OPTIONS} value={dept} onChange={(e) => { setDept(e.target.value); setPage(1); }} className="sm:w-44" />
+          <Select options={STATUS_OPTIONS} value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="sm:w-36" />
+          <Tabs
+            tabs={[{ label: "", value: "table" }, { label: "", value: "grid" }]}
+            activeTab={view}
+            onChange={setView}
+            className="hidden sm:flex"
+          />
+          <div className="hidden sm:flex gap-1">
+            <button onClick={() => setView("table")} className={`p-2 rounded-lg border cursor-pointer transition-colors ${view === "table" ? "bg-primary text-white border-primary" : "border-border text-slate-500 hover:bg-slate-50"}`}><List className="h-4 w-4" /></button>
+            <button onClick={() => setView("grid")} className={`p-2 rounded-lg border cursor-pointer transition-colors ${view === "grid" ? "bg-primary text-white border-primary" : "border-border text-slate-500 hover:bg-slate-50"}`}><LayoutGrid className="h-4 w-4" /></button>
           </div>
+        </div>
+      </Card>
 
-          {/* Roster Table */}
-          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-            <table className="w-full text-sm border-collapse text-left">
+      {/* Content */}
+      {filtered.length === 0 ? (
+        <EmptyState variant="search" title="No employees found" description="Try adjusting your search or filter criteria." action={{ label: "Clear filters", onClick: () => { setSearch(""); setDept(""); setStatusFilter(""); } }} />
+      ) : view === "table" ? (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-border text-slate-400 font-semibold text-[10px] uppercase tracking-wider">
-                  <th className="p-4">Employee ID</th>
-                  <th className="p-4">Name</th>
-                  <th className="p-4">Department</th>
-                  <th className="p-4">Role</th>
-                  <th className="p-4">Status</th>
+                <tr className="bg-slate-50 border-b border-border text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <th className="p-4 text-left">Employee</th>
+                  <th className="p-4 text-left hidden md:table-cell">Department</th>
+                  <th className="p-4 text-left hidden lg:table-cell">Contact</th>
+                  <th className="p-4 text-left hidden xl:table-cell">Joined</th>
+                  <th className="p-4 text-left">Status</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredEmployees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-slate-50/40">
-                    <td className="p-4 font-mono text-xs font-bold text-slate-500">{emp.id}</td>
+              <tbody className="divide-y divide-slate-50">
+                {paginated.map((emp, i) => (
+                  <tr key={emp.id} className="hover:bg-slate-50/60 transition-colors group">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs text-primary">
-                          {emp.name.split(" ").map(n => n[0]).join("")}
+                        <div className={`h-9 w-9 rounded-full bg-gradient-to-tr ${gradients[i % gradients.length]} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                          {emp.avatar}
                         </div>
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-700">{emp.name}</span>
-                          <span className="text-[10px] text-slate-400">{emp.email}</span>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{emp.name}</p>
+                          <p className="text-xs text-slate-500">{emp.role}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 text-slate-500 text-xs">{emp.department}</td>
-                    <td className="p-4 text-slate-500 text-xs">{emp.role}</td>
-                    <td className="p-4">
-                      <Badge variant={emp.status === "ACTIVE" ? "success" : "warning"}>
-                        {emp.status}
-                      </Badge>
+                    <td className="p-4 hidden md:table-cell">
+                      <Badge variant="secondary">{emp.dept}</Badge>
                     </td>
-                    <td className="p-4 text-right space-x-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setSelectedEmp(emp)}
-                        className="h-8 px-2 hover:bg-slate-100 text-slate-600 rounded-lg cursor-pointer"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedEmp(emp);
-                          setFormName(emp.name);
-                          setFormEmail(emp.email);
-                          setFormDept(emp.department);
-                          setFormRole(emp.role);
-                          setIsEditOpen(true);
-                        }}
-                        className="h-8 px-2 hover:bg-slate-100 text-slate-600 rounded-lg cursor-pointer"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
+                    <td className="p-4 hidden lg:table-cell">
+                      <div className="text-xs text-slate-500 space-y-0.5">
+                        <div className="flex items-center gap-1"><Mail className="h-3 w-3" />{emp.email}</div>
+                        <div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{emp.location}</div>
+                      </div>
+                    </td>
+                    <td className="p-4 hidden xl:table-cell text-xs text-slate-500">{emp.joined}</td>
+                    <td className="p-4">
+                      <Badge variant={statusVariant[emp.status] ?? "secondary"}>{emp.status}</Badge>
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Link href={`/admin/employees/${emp.id}`}>
+                          <button className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer transition-colors" aria-label="View"><Eye className="h-3.5 w-3.5" /></button>
+                        </Link>
+                        <button className="p-1.5 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 cursor-pointer transition-colors" aria-label="Edit"><Edit className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => setDeleteTarget(emp.id)} className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer transition-colors" aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <div className="p-4 border-t border-border">
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+          </div>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {paginated.map((emp, i) => (
+            <Card key={emp.id} className="flex flex-col hover:shadow-md transition-shadow">
+              <div className="flex flex-col items-center text-center pt-2 pb-4 gap-3">
+                <div className={`h-14 w-14 rounded-full bg-gradient-to-tr ${gradients[i % gradients.length]} flex items-center justify-center text-white text-lg font-bold shadow-md`}>
+                  {emp.avatar}
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800 text-sm">{emp.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{emp.role}</p>
+                  <Badge variant={statusVariant[emp.status] ?? "secondary"} className="mt-2">{emp.status}</Badge>
+                </div>
+              </div>
+              <div className="border-t border-slate-100 pt-3 space-y-1.5 text-xs text-slate-500">
+                <div className="flex items-center gap-2"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{emp.email}</span></div>
+                <div className="flex items-center gap-2"><Users className="h-3 w-3 shrink-0" /><span>{emp.dept}</span></div>
+                <div className="flex items-center gap-2"><MapPin className="h-3 w-3 shrink-0" /><span>{emp.location}</span></div>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <Link href={`/admin/employees/${emp.id}`} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full cursor-pointer">View</Button>
+                </Link>
+                <button onClick={() => setDeleteTarget(emp.id)} className="p-2 rounded-lg border border-border text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 cursor-pointer transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            </Card>
+          ))}
         </div>
       )}
 
-      {/* Org Chart Tab Content */}
-      {activeTab === "org-chart" && (
-        <Card className="p-8 border-border shadow-sm flex flex-col items-center">
-          <div className="space-y-8 w-full max-w-3xl flex flex-col items-center">
-            {/* CEO node */}
-            <div className="flex flex-col items-center">
-              <div className="bg-primary text-primary-foreground p-4 rounded-xl shadow-md text-center w-52 border border-primary/20">
-                <h4 className="font-bold text-sm">William Vance</h4>
-                <p className="text-[10px] text-purple-200 mt-1 uppercase font-semibold tracking-wider">Chief Executive Officer</p>
-              </div>
-              <div className="h-8 w-0.5 bg-slate-200 mt-2" />
-            </div>
-
-            {/* Reporting Line connectors */}
-            <div className="w-full flex items-center justify-between px-16 relative">
-              <div className="absolute top-0 left-[20%] right-[20%] h-0.5 bg-slate-200" />
-              
-              {/* Dept Node 1 */}
-              <div className="flex flex-col items-center flex-1">
-                <div className="h-4 w-0.5 bg-slate-200" />
-                <div className="bg-card border border-border p-3.5 rounded-xl shadow-xs text-center w-48 hover:shadow transition-shadow">
-                  <h4 className="font-bold text-xs text-slate-700">Jane Cooper</h4>
-                  <p className="text-[9px] text-muted-foreground mt-0.5 uppercase tracking-wider">VP of Engineering</p>
-                  <div className="flex items-center justify-center gap-1.5 mt-2 text-[9px] text-slate-400">
-                    <ChevronRight className="h-3 w-3 rotate-90 text-slate-300" />
-                    <span>3 direct reports</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Dept Node 2 */}
-              <div className="flex flex-col items-center flex-1">
-                <div className="h-4 w-0.5 bg-slate-200" />
-                <div className="bg-card border border-border p-3.5 rounded-xl shadow-xs text-center w-48 hover:shadow transition-shadow">
-                  <h4 className="font-bold text-xs text-slate-700">Esther Howard</h4>
-                  <p className="text-[9px] text-muted-foreground mt-0.5 uppercase tracking-wider">Director of Product</p>
-                  <div className="flex items-center justify-center gap-1.5 mt-2 text-[9px] text-slate-400">
-                    <ChevronRight className="h-3 w-3 rotate-90 text-slate-300" />
-                    <span>1 direct report</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Dept Node 3 */}
-              <div className="flex flex-col items-center flex-1">
-                <div className="h-4 w-0.5 bg-slate-200" />
-                <div className="bg-card border border-border p-3.5 rounded-xl shadow-xs text-center w-48 hover:shadow transition-shadow">
-                  <h4 className="font-bold text-xs text-slate-700">Albert Flores</h4>
-                  <p className="text-[9px] text-muted-foreground mt-0.5 uppercase tracking-wider">HR Manager</p>
-                  <div className="flex items-center justify-center gap-1.5 mt-2 text-[9px] text-slate-400">
-                    <ChevronRight className="h-3 w-3 rotate-90 text-slate-300" />
-                    <span>0 reports</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
+      {/* Pagination for grid view */}
+      {view === "grid" && filtered.length > PAGE_SIZE && (
+        <div className="mt-4">
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+        </div>
       )}
 
-      {/* Employee Details Modal */}
-      <Modal isOpen={selectedEmp !== null && !isEditOpen} onClose={() => setSelectedEmp(null)} title="Employee Dossier">
-        {selectedEmp && (
-          <div className="space-y-6">
-            {/* Header info */}
-            <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-md">
-                {selectedEmp.name.split(" ").map(n => n[0]).join("")}
-              </div>
-              <div>
-                <h3 className="text-md font-bold text-slate-900">{selectedEmp.name}</h3>
-                <p className="text-xs text-slate-400">{selectedEmp.role}</p>
-                <Badge variant={selectedEmp.status === "ACTIVE" ? "success" : "warning"} className="mt-1">
-                  {selectedEmp.status}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Profile Grid */}
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div className="space-y-1 p-2 bg-card rounded-lg border border-border">
-                <p className="font-semibold text-slate-400 uppercase tracking-wide">ID Number</p>
-                <p className="font-bold text-slate-700">{selectedEmp.id}</p>
-              </div>
-              <div className="space-y-1 p-2 bg-card rounded-lg border border-border">
-                <p className="font-semibold text-slate-400 uppercase tracking-wide">Department</p>
-                <p className="font-bold text-slate-700">{selectedEmp.department}</p>
-              </div>
-              <div className="space-y-1 p-2 bg-card rounded-lg border border-border">
-                <p className="font-semibold text-slate-400 uppercase tracking-wide">Work Email</p>
-                <p className="font-bold text-slate-700">{selectedEmp.email}</p>
-              </div>
-              <div className="space-y-1 p-2 bg-card rounded-lg border border-border">
-                <p className="font-semibold text-slate-400 uppercase tracking-wide">Mobile Phone</p>
-                <p className="font-bold text-slate-700">{selectedEmp.phone}</p>
-              </div>
-              <div className="space-y-1 p-2 bg-card rounded-lg border border-border">
-                <p className="font-semibold text-slate-400 uppercase tracking-wide">Date Joined</p>
-                <p className="font-bold text-slate-700">{selectedEmp.joined}</p>
-              </div>
-              <div className="space-y-1 p-2 bg-card rounded-lg border border-border">
-                <p className="font-semibold text-slate-400 uppercase tracking-wide">Annual Salary</p>
-                <p className="font-bold text-slate-700">${selectedEmp.salary.toLocaleString()}</p>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-4 border-t">
-              <Button onClick={() => setSelectedEmp(null)}>Done</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Employee Record"
+        description="This action is permanent. The employee's data, payroll history, and documents will be removed."
+        confirmLabel="Delete Employee"
+        variant="destructive"
+      />
 
       {/* Add Employee Modal */}
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Onboard New Employee">
-        <form onSubmit={handleAddSubmit} className="space-y-4">
-          <Input
-            label="Full Name"
-            placeholder="Jane Cooper"
-            value={formName}
-            onChange={(e) => setFormName(e.target.value)}
-            required
-          />
-          <Input
-            label="Work Email Address"
-            type="email"
-            placeholder="jane.cooper@company.com"
-            value={formEmail}
-            onChange={(e) => setFormEmail(e.target.value)}
-            required
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Department
-              </label>
-              <select
-                value={formDept}
-                onChange={(e) => setFormDept(e.target.value)}
-                className="flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-sm cursor-pointer"
-              >
-                <option value="Engineering">Engineering</option>
-                <option value="Product Management">Product Management</option>
-                <option value="Human Resources">Human Resources</option>
-                <option value="Sales & Marketing">Sales & Marketing</option>
-              </select>
-            </div>
-            <Input
-              label="Corporate Role"
-              placeholder="Developer"
-              value={formRole}
-              onChange={(e) => setFormRole(e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex justify-end gap-3 border-t pt-4">
-            <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              Complete Onboarding
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Edit Employee Modal */}
-      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Employee Profile">
-        <form onSubmit={handleEditSubmit} className="space-y-4">
-          <Input
-            label="Full Name"
-            value={formName}
-            onChange={(e) => setFormName(e.target.value)}
-            required
-          />
-          <Input
-            label="Work Email Address"
-            type="email"
-            value={formEmail}
-            onChange={(e) => setFormEmail(e.target.value)}
-            required
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Department
-              </label>
-              <select
-                value={formDept}
-                onChange={(e) => setFormDept(e.target.value)}
-                className="flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-sm cursor-pointer"
-              >
-                <option value="Engineering">Engineering</option>
-                <option value="Product Management">Product Management</option>
-                <option value="Human Resources">Human Resources</option>
-                <option value="Sales & Marketing">Sales & Marketing</option>
-              </select>
-            </div>
-            <Input
-              label="Corporate Role"
-              value={formRole}
-              onChange={(e) => setFormRole(e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex justify-end gap-3 border-t pt-4">
-            <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              Save Changes
-            </Button>
+        <form onSubmit={handleAdd} className="space-y-4">
+          <Input label="Full Name" value={newName} onChange={(e) => setNewName(e.target.value)} required placeholder="e.g. Sarah Johnson" />
+          <Input label="Job Title / Role" value={newRole} onChange={(e) => setNewRole(e.target.value)} required placeholder="e.g. Senior Engineer" />
+          <Input label="Work Email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required placeholder="e.g. sarah@acme.com" />
+          <Select label="Department" options={DEPT_OPTIONS.filter((d) => d.value)} value={newDept} onChange={(e) => setNewDept(e.target.value)} />
+          <div className="flex gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)} className="flex-1 cursor-pointer">Cancel</Button>
+            <Button type="submit" className="flex-1 cursor-pointer">Add Employee</Button>
           </div>
         </form>
       </Modal>

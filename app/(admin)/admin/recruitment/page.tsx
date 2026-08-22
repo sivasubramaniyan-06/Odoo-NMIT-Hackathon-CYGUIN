@@ -2,249 +2,247 @@
 
 import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Tabs } from "@/components/ui/Tabs";
+import { StatCard } from "@/components/ui/StatCard";
 import { Modal } from "@/components/ui/Modal";
-import {
-  Briefcase,
-  Calendar,
-  Clock,
-  Plus,
-  ArrowRight,
-  UserCheck,
-  Video,
-} from "lucide-react";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { useToast } from "@/components/ui/Toast";
+import { Briefcase, Users, Calendar, FileText, Plus, Star, Clock, ChevronRight } from "lucide-react";
 
-// Mock candidates pipeline
-const initialCandidates = [
-  { id: "c1", name: "Esther Howard", role: "Frontend Dev", stage: "Applied", email: "esther.h@gmail.com" },
-  { id: "c2", name: "Devon Lane", role: "Product Manager", stage: "Technical", email: "devon.lane@gmail.com" },
-  { id: "c3", name: "Bessie Cooper", role: "Marketing Lead", stage: "Technical", email: "bessie.c@gmail.com" },
-  { id: "c4", name: "Courtney Henry", role: "QA Engineer", stage: "Finalist", email: "courtney.h@gmail.com" },
-  { id: "c5", name: "Albert Flores", role: "HR Coordinator", stage: "Offer", email: "albert.f@gmail.com" },
+const TABS = [
+  { label: "Job Postings", value: "jobs" },
+  { label: "Pipeline", value: "pipeline" },
+  { label: "Interviews", value: "interviews" },
 ];
 
-const stages = ["Applied", "Technical", "Finalist", "Offer"];
+const jobPostings = [
+  { id: "J001", title: "Senior Frontend Engineer", dept: "Engineering", location: "Hybrid, SF", applicants: 42, status: "Active", posted: "Aug 10" },
+  { id: "J002", title: "Product Designer II", dept: "Design", location: "Remote", applicants: 28, status: "Active", posted: "Aug 15" },
+  { id: "J003", title: "Sales Account Executive", dept: "Sales", location: "New York", applicants: 15, status: "Paused", posted: "Jul 28" },
+  { id: "J004", title: "DevOps Engineer", dept: "Engineering", location: "Austin, TX", applicants: 19, status: "Active", posted: "Aug 18" },
+  { id: "J005", title: "Content Marketing Manager", dept: "Marketing", location: "Remote", applicants: 33, status: "Closed", posted: "Jul 01" },
+];
+
+const pipeline = {
+  Applied: [
+    { name: "Lena Park", role: "Frontend Eng", score: 82, avatar: "LP" },
+    { name: "Raj Sharma", role: "Frontend Eng", score: 76, avatar: "RS" },
+    { name: "Amy Chen", role: "Designer", score: 88, avatar: "AC" },
+  ],
+  Screening: [
+    { name: "Tom Walsh", role: "DevOps", score: 79, avatar: "TW" },
+    { name: "Nina Patel", role: "Frontend Eng", score: 91, avatar: "NP" },
+  ],
+  Interview: [
+    { name: "Dan Kim", role: "Frontend Eng", score: 85, avatar: "DK" },
+  ],
+  "Offer Sent": [
+    { name: "Sarah Miller", role: "Designer", score: 94, avatar: "SM" },
+  ],
+};
+
+const interviews = [
+  { id: "I01", candidate: "Dan Kim", role: "Senior Frontend Eng", date: "Aug 23, 10:00 AM", interviewer: "Jordan Kim", type: "Technical", status: "Scheduled" },
+  { id: "I02", candidate: "Nina Patel", role: "Senior Frontend Eng", date: "Aug 24, 2:00 PM", interviewer: "Ana Patel", type: "Portfolio Review", status: "Scheduled" },
+  { id: "I03", candidate: "Tom Walsh", role: "DevOps Engineer", date: "Aug 22, 11:00 AM", interviewer: "Sam Taylor", type: "Phone Screen", status: "Completed" },
+];
+
+const pipelineStages = ["Applied", "Screening", "Interview", "Offer Sent"] as const;
+const stageColors = ["bg-sky-50 border-sky-200", "bg-amber-50 border-amber-200", "bg-purple-50 border-purple-200", "bg-emerald-50 border-emerald-200"];
 
 export default function AdminRecruitmentPage() {
-  const [candidates, setCandidates] = useState(initialCandidates);
-  const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
+  const { toast } = useToast();
+  const [tab, setTab] = useState("jobs");
+  const [search, setSearch] = useState("");
+  const [isJobOpen, setIsJobOpen] = useState(false);
+  const [isInterviewOpen, setIsInterviewOpen] = useState(false);
+  const [jobTitle, setJobTitle] = useState("");
+  const [jobDept, setJobDept] = useState("Engineering");
 
-  // Form states
-  const [candName, setCandName] = useState("");
-  const [candRole, setCandRole] = useState("Frontend Dev");
-  const [candEmail, setCandEmail] = useState("");
-  const [interviewDate, setInterviewDate] = useState("2026-08-25");
-  const [interviewTime, setInterviewTime] = useState("10:00 AM");
+  const filteredJobs = jobPostings.filter((j) =>
+    !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.dept.toLowerCase().includes(search.toLowerCase())
+  );
 
-  const moveCandidate = (id: string, nextStage: string) => {
-    setCandidates(
-      candidates.map((c) => (c.id === id ? { ...c, stage: nextStage } : c))
-    );
+  const handleAddJob = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsJobOpen(false);
+    toast({ title: "Job posting created", description: `"${jobTitle}" has been published and is now accepting applications.`, variant: "success" });
+    setJobTitle("");
   };
 
-  const handleScheduleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Add to pipeline as Applied or Scheduled
-    const newCand = {
-      id: `c-${Date.now()}`,
-      name: candName,
-      role: candRole,
-      stage: "Technical",
-      email: candEmail,
-    };
-    setCandidates([...candidates, newCand]);
-    setIsSchedulerOpen(false);
-    // Reset Form
-    setCandName("");
-    setCandEmail("");
+  const statusVariant: Record<string, "success" | "warning" | "danger" | "secondary"> = {
+    Active: "success", Paused: "warning", Closed: "danger",
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Page Header */}
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-            Recruitment & ATS Board
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Track job applications, manage hiring funnels, and organize candidate evaluations.
-          </p>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Recruitment & ATS</h1>
+          <p className="text-xs text-slate-500 mt-1">Manage job postings, candidate pipelines, and interview scheduling</p>
         </div>
-        <div className="flex gap-3">
-          <Button onClick={() => setIsSchedulerOpen(true)} className="flex items-center gap-2 cursor-pointer">
-            <Plus className="h-4 w-4" />
-            <span>Schedule Interview</span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setIsInterviewOpen(true)} className="flex items-center gap-1.5 cursor-pointer">
+            <Calendar className="h-4 w-4" /><span>Schedule Interview</span>
+          </Button>
+          <Button size="sm" onClick={() => setIsJobOpen(true)} className="flex items-center gap-1.5 cursor-pointer">
+            <Plus className="h-4 w-4" /><span>Post Job</span>
           </Button>
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-purple-50 text-primary rounded-xl">
-            <Briefcase className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Open Roles</p>
-            <h3 className="text-2xl font-bold text-slate-950 mt-1">18</h3>
-            <p className="text-[10px] text-slate-500 font-semibold mt-1">Across 4 departments</p>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 text-secondary rounded-xl">
-            <Clock className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Funnel</p>
-            <h3 className="text-2xl font-bold text-slate-950 mt-1">42</h3>
-            <p className="text-[10px] text-amber-600 font-semibold mt-1">Candidates in pipeline</p>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-            <UserCheck className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Offers Made</p>
-            <h3 className="text-2xl font-bold text-slate-950 mt-1">4</h3>
-            <p className="text-[10px] text-emerald-600 font-semibold mt-1">2 accepted this week</p>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-sky-50 text-sky-700 rounded-xl">
-            <Calendar className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Scheduled (Week)</p>
-            <h3 className="text-2xl font-bold text-slate-950 mt-1">12</h3>
-            <p className="text-[10px] text-slate-500 font-semibold mt-1">Technical & Final rounds</p>
-          </div>
-        </Card>
+        <StatCard title="Active Positions" value="4" icon={Briefcase} iconBg="bg-purple-50" iconColor="text-primary" trend={{ value: 33 }} />
+        <StatCard title="Total Applicants" value="137" icon={Users} iconBg="bg-sky-50" iconColor="text-sky-600" trend={{ value: 15 }} />
+        <StatCard title="Interviews This Week" value="5" icon={Calendar} iconBg="bg-amber-50" iconColor="text-amber-600" />
+        <StatCard title="Offer Acceptance Rate" value="78%" icon={Star} iconBg="bg-emerald-50" iconColor="text-emerald-600" />
       </div>
 
-      {/* Kanban Board Grid */}
-      <div className="grid gap-4 md:grid-cols-4">
-        {stages.map((stage) => {
-          const stageCandidates = candidates.filter((c) => c.stage === stage);
+      <Tabs tabs={TABS} activeTab={tab} onChange={setTab} />
 
-          return (
-            <div key={stage} className="flex flex-col rounded-xl bg-slate-50 border border-slate-100 p-4 h-[600px] overflow-hidden">
-              <div className="flex items-center justify-between border-b pb-3 mb-4">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">{stage}</span>
-                <Badge variant="outline" className="text-[10px]">
-                  {stageCandidates.length}
-                </Badge>
+      {tab === "jobs" && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+            <CardTitle>All Job Postings</CardTitle>
+            <SearchBar value={search} onChange={setSearch} placeholder="Search jobs..." className="w-60" />
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-border text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="p-4 text-left">Position</th>
+                    <th className="p-4 text-left hidden md:table-cell">Department</th>
+                    <th className="p-4 text-left hidden lg:table-cell">Location</th>
+                    <th className="p-4 text-center">Applicants</th>
+                    <th className="p-4 text-left">Status</th>
+                    <th className="p-4 text-left hidden sm:table-cell">Posted</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredJobs.map((job) => (
+                    <tr key={job.id} className="hover:bg-slate-50/60 transition-colors group">
+                      <td className="p-4">
+                        <p className="font-semibold text-slate-800 text-xs">{job.title}</p>
+                        <p className="text-[10px] text-slate-400 font-mono">{job.id}</p>
+                      </td>
+                      <td className="p-4 hidden md:table-cell"><Badge variant="secondary">{job.dept}</Badge></td>
+                      <td className="p-4 hidden lg:table-cell text-xs text-slate-500">{job.location}</td>
+                      <td className="p-4 text-center text-xs font-bold text-primary">{job.applicants}</td>
+                      <td className="p-4"><Badge variant={statusVariant[job.status]}>{job.status}</Badge></td>
+                      <td className="p-4 hidden sm:table-cell text-xs text-slate-400">{job.posted}</td>
+                      <td className="p-4 text-right">
+                        <button className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer opacity-0 group-hover:opacity-100 transition-all">
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {tab === "pipeline" && (
+        <div className="grid gap-4 lg:grid-cols-4">
+          {pipelineStages.map((stage, si) => (
+            <div key={stage} className={`rounded-xl border-2 ${stageColors[si]} p-4 space-y-3`}>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{stage}</h3>
+                <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold text-slate-600 border">
+                  {pipeline[stage]?.length ?? 0}
+                </span>
               </div>
-
-              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                {stageCandidates.length === 0 ? (
-                  <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-200/50 rounded-xl py-12 text-center text-slate-400 text-[10px]">
-                    No candidates
+              {(pipeline[stage] ?? []).map((c) => (
+                <div key={c.name} className="bg-card rounded-xl p-3 border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                      {c.avatar}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">{c.name}</p>
+                      <p className="text-[10px] text-slate-500">{c.role}</p>
+                    </div>
                   </div>
-                ) : (
-                  stageCandidates.map((cand) => (
-                    <Card key={cand.id} className="p-4 bg-card border-slate-200 hover:border-primary/30 shadow-xs cursor-pointer group">
-                      <h4 className="font-bold text-xs text-slate-800">{cand.name}</h4>
-                      <p className="text-[10px] text-slate-400 font-semibold mt-1">{cand.role}</p>
-                      <p className="text-[9px] text-slate-400 mt-1 truncate">{cand.email}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400">Match Score</span>
+                    <span className={`text-[10px] font-bold ${c.score >= 85 ? "text-emerald-600" : c.score >= 75 ? "text-amber-600" : "text-rose-600"}`}>
+                      {c.score}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
-                      {/* Advance Stage button */}
-                      {stage !== "Offer" && (
-                        <div className="flex justify-end mt-3 border-t pt-2.5">
-                          <button
-                            onClick={() => {
-                              const nextIdx = stages.indexOf(stage) + 1;
-                              moveCandidate(cand.id, stages[nextIdx]!);
-                            }}
-                            className="inline-flex items-center gap-1 text-[10px] text-primary font-bold hover:underline cursor-pointer"
-                          >
-                            <span>Move Stage</span>
-                            <ArrowRight className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )}
-                    </Card>
-                  ))
-                )}
+      {tab === "interviews" && (
+        <div className="space-y-4">
+          {interviews.map((iv) => (
+            <Card key={iv.id} className="hover:shadow-md transition-shadow">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold text-slate-800">{iv.candidate}</p>
+                    <Badge variant="secondary">{iv.type}</Badge>
+                    <Badge variant={iv.status === "Completed" ? "success" : "info"}>{iv.status}</Badge>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">{iv.role}</p>
+                  <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-400">
+                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{iv.date}</span>
+                    <span className="flex items-center gap-1"><Users className="h-3 w-3" />Interviewer: {iv.interviewer}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button size="sm" variant="outline" className="cursor-pointer">View Notes</Button>
+                  {iv.status === "Scheduled" && (
+                    <Button size="sm" className="cursor-pointer">Start Interview</Button>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
-      {/* Scheduler Modal */}
-      <Modal isOpen={isSchedulerOpen} onClose={() => setIsSchedulerOpen(false)} title="Schedule Candidate Evaluation">
-        <form onSubmit={handleScheduleSubmit} className="space-y-4">
-          <Input
-            label="Candidate Name"
-            placeholder="Jane Doe"
-            value={candName}
-            onChange={(e) => setCandName(e.target.value)}
-            required
-          />
-          <Input
-            label="Work Email Address"
-            type="email"
-            placeholder="jane.doe@gmail.com"
-            value={candEmail}
-            onChange={(e) => setCandEmail(e.target.value)}
-            required
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Target Role
-              </label>
-              <select
-                value={candRole}
-                onChange={(e) => setCandRole(e.target.value)}
-                className="flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-sm cursor-pointer"
-              >
-                <option value="Frontend Dev">Frontend Dev</option>
-                <option value="Product Manager">Product Manager</option>
-                <option value="QA Engineer">QA Engineer</option>
-                <option value="HR Coordinator">HR Coordinator</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Interview Format
-              </label>
-              <div className="flex h-10 items-center gap-2 border border-border rounded-lg bg-slate-50/50 px-3 text-xs text-slate-600">
-                <Video className="h-4 w-4 text-slate-400" />
-                <span>Virtual Meeting (Google Meet)</span>
-              </div>
-            </div>
+      {/* Post Job Modal */}
+      <Modal isOpen={isJobOpen} onClose={() => setIsJobOpen(false)} title="Create Job Posting">
+        <form onSubmit={handleAddJob} className="space-y-4">
+          <Input label="Job Title" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} required placeholder="e.g. Senior Frontend Engineer" />
+          <Select label="Department" options={[{ value: "Engineering", label: "Engineering" }, { value: "Design", label: "Design" }, { value: "Sales", label: "Sales" }, { value: "Marketing", label: "Marketing" }]} value={jobDept} onChange={(e) => setJobDept(e.target.value)} />
+          <Input label="Location" placeholder="e.g. Remote, San Francisco" />
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Job Description</label>
+            <textarea className="w-full min-h-[80px] rounded-lg border border-border p-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Describe the role and responsibilities..." />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Interview Date"
-              type="date"
-              value={interviewDate}
-              onChange={(e) => setInterviewDate(e.target.value)}
-              required
-            />
-            <Input
-              label="Start Time"
-              placeholder="10:00 AM"
-              value={interviewTime}
-              onChange={(e) => setInterviewTime(e.target.value)}
-              required
-            />
+          <div className="flex gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => setIsJobOpen(false)} className="flex-1 cursor-pointer">Cancel</Button>
+            <Button type="submit" className="flex-1 cursor-pointer">Publish Job</Button>
           </div>
-          <div className="flex justify-end gap-3 border-t pt-4">
-            <Button type="button" variant="outline" onClick={() => setIsSchedulerOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              Schedule & Invite
-            </Button>
+        </form>
+      </Modal>
+
+      {/* Schedule Interview Modal */}
+      <Modal isOpen={isInterviewOpen} onClose={() => setIsInterviewOpen(false)} title="Schedule Interview">
+        <form onSubmit={(e) => { e.preventDefault(); setIsInterviewOpen(false); toast({ title: "Interview scheduled", variant: "success" }); }} className="space-y-4">
+          <Input label="Candidate Name" placeholder="e.g. Dan Kim" required />
+          <Input label="Position" placeholder="e.g. Senior Frontend Engineer" required />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Date" type="date" required />
+            <Input label="Time" type="time" required />
+          </div>
+          <Input label="Interviewer" placeholder="e.g. Jordan Kim" required />
+          <div className="flex gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => setIsInterviewOpen(false)} className="flex-1 cursor-pointer">Cancel</Button>
+            <Button type="submit" className="flex-1 cursor-pointer">Schedule</Button>
           </div>
         </form>
       </Modal>

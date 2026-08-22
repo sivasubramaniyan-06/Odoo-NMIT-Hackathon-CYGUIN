@@ -2,96 +2,147 @@
 
 import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import {
-  GraduationCap,
-  BookOpen,
-  Award,
-  Download,
-  Play,
-  CheckCircle,
-} from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Tabs } from "@/components/ui/Tabs";
+import { Progress } from "@/components/ui/Progress";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { useToast } from "@/components/ui/Toast";
+import { GraduationCap, Star, Award, BookOpen, Play, CheckCircle2, Flame } from "lucide-react";
 
-// Mock personal courses list
-const assignedCourses = [
-  { id: "1", title: "Information Security Guidelines", category: "Compliance", progress: 65, duration: "2.0h", instructor: "System Admin", deadline: "Aug 28, 2026" },
-  { id: "2", title: "Corporate Code of Conduct", category: "Compliance", progress: 100, duration: "1.5h", instructor: "HR Team", deadline: "Completed" },
-  { id: "3", title: "Introduction to Next.js 15", category: "Technical", progress: 20, duration: "4.0h", instructor: "Engineering Lead", deadline: "Sep 15, 2026" },
+const TABS = [
+  { label: "My Courses", value: "enrolled" },
+  { label: "Catalog", value: "catalog" },
+  { label: "Certificates", value: "certs" },
+];
+
+const enrolled = [
+  { id: 1, title: "Code of Conduct 2026", category: "Compliance", progress: 100, lessons: 6, total: 6, cert: true, color: "from-emerald-500 to-teal-600" },
+  { id: 2, title: "Security Awareness Training", category: "Security", progress: 60, lessons: 3, total: 5, cert: false, color: "from-amber-500 to-orange-600" },
+  { id: 3, title: "Advanced React Patterns", category: "Technical", progress: 30, lessons: 2, total: 7, cert: false, color: "from-primary to-secondary" },
+  { id: 4, title: "Leadership Fundamentals", category: "Soft Skills", progress: 0, lessons: 0, total: 8, cert: false, color: "from-pink-500 to-rose-600" },
+];
+
+const catalog = [
+  { id: 5, title: "Data Analysis with Python", category: "Technical", duration: "4h 30m", level: "Intermediate", enrolled: false },
+  { id: 6, title: "Effective Communication", category: "Soft Skills", duration: "2h 15m", level: "Beginner", enrolled: false },
+  { id: 7, title: "Project Management Essentials", category: "Management", duration: "6h 00m", level: "Intermediate", enrolled: false },
+  { id: 8, title: "Design Thinking Workshop", category: "Design", duration: "3h 45m", level: "Beginner", enrolled: true },
 ];
 
 const certificates = [
-  { id: "CRT-10928", title: "Corporate Code of Conduct Verification", issueDate: "Aug 10, 2026", type: "Compliance Certificate" },
-  { id: "CRT-10812", title: "Workspace Anti-Harassment Standards", issueDate: "Jan 15, 2026", type: "Compliance Certificate" },
+  { title: "Code of Conduct 2026", issued: "Aug 15, 2026", id: "CERT-2026-001" },
 ];
 
+const categoryBadge: Record<string, "default" | "success" | "warning" | "info" | "secondary"> = {
+  Compliance: "success",
+  Security: "warning",
+  Technical: "default",
+  "Soft Skills": "info",
+  Management: "secondary",
+  Design: "secondary",
+};
+
 export default function EmployeeTrainingPage() {
-  const [courses, setCourses] = useState(assignedCourses);
+  const { toast } = useToast();
+  const [tab, setTab] = useState("enrolled");
+  const [search, setSearch] = useState("");
+  const [enrolledIds, setEnrolledIds] = useState(new Set([1, 2, 3, 4, 8]));
+
+  const filteredCatalog = catalog.filter((c) =>
+    !search || c.title.toLowerCase().includes(search.toLowerCase()) || c.category.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const completedCount = enrolled.filter((c) => c.progress === 100).length;
+  const inProgressCount = enrolled.filter((c) => c.progress > 0 && c.progress < 100).length;
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-          L&D Learning Center
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Complete mandatory corporate training programs, study lessons, and download certifications.
-        </p>
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">My Learning</h1>
+          <p className="text-xs text-slate-500 mt-1">
+            {completedCount} completed · {inProgressCount} in progress · {enrolled.length} total assigned
+          </p>
+        </div>
+        {/* Streak Badge */}
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
+          <Flame className="h-4 w-4 text-amber-500" />
+          <span className="text-xs font-bold text-amber-700">12 Day Learning Streak 🔥</span>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Column: Assigned Courses grid */}
-        <div className="lg:col-span-2 space-y-6">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <BookOpen className="h-4.5 w-4.5 text-primary" />
-            <span>Assigned Training Paths</span>
-          </h3>
+      <Tabs tabs={TABS} activeTab={tab} onChange={setTab} />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {courses.map((course) => (
-              <Card key={course.id} className="flex flex-col justify-between hover:shadow transition-shadow">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Badge variant={course.category === "Compliance" ? "default" : "secondary"}>
-                      {course.category}
-                    </Badge>
-                    <span className="text-[10px] text-slate-400 font-semibold">{course.duration}</span>
+      {tab === "enrolled" && (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
+          {enrolled.map((course) => (
+            <Card key={course.id} className="overflow-hidden hover:shadow-md transition-shadow">
+              {/* Course Banner */}
+              <div className={`h-20 bg-gradient-to-r ${course.color} flex items-center justify-center relative`}>
+                <BookOpen className="h-8 w-8 text-white/60" />
+                {course.cert && course.progress === 100 && (
+                  <div className="absolute top-2 right-2 rounded-full bg-amber-400 p-1 shadow-sm">
+                    <Star className="h-3 w-3 text-white" />
                   </div>
-
-                  <div>
-                    <h4 className="font-bold text-xs text-slate-800 leading-snug">{course.title}</h4>
-                    <p className="text-[10px] text-slate-400 mt-1">Instructor: {course.instructor}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      Deadline: <span className="font-semibold text-slate-600">{course.deadline}</span>
-                    </p>
-                  </div>
-
-                  {/* Progress block */}
-                  <div className="space-y-1.5 pt-2">
-                    <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase">
-                      <span>Progress</span>
-                      <span>{course.progress}%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary"
-                        style={{ width: `${course.progress}%` }}
-                      />
-                    </div>
-                  </div>
+                )}
+              </div>
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-sm font-bold text-slate-800">{course.title}</h3>
+                  <Badge variant={categoryBadge[course.category]}>{course.category}</Badge>
                 </div>
-
-                <div className="flex justify-end mt-4 pt-3 border-t">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>Progress</span>
+                    <span className="font-semibold">{course.lessons}/{course.total} lessons</span>
+                  </div>
+                  <Progress value={course.progress} size="md" variant={course.progress === 100 ? "success" : "default"} showValue />
+                </div>
+                <Button
+                  className={`w-full flex items-center justify-center gap-2 cursor-pointer ${course.progress === 100 ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+                  onClick={() => toast({ title: course.progress === 100 ? "Course completed!" : `Resuming ${course.title}`, variant: "success" })}
+                >
                   {course.progress === 100 ? (
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold py-1">
-                      <CheckCircle className="h-4 w-4" />
-                      <span>Completed</span>
-                    </div>
+                    <><CheckCircle2 className="h-4 w-4" />Completed</>
+                  ) : course.progress === 0 ? (
+                    <><Play className="h-4 w-4" />Start Course</>
                   ) : (
-                    <Button size="sm" className="h-8 text-xs flex items-center gap-1.5 rounded-lg cursor-pointer">
-                      <Play className="h-3.5 w-3.5 fill-current" />
-                      <span>Study Lessons</span>
+                    <><Play className="h-4 w-4" />Continue</>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {tab === "catalog" && (
+        <div className="space-y-4">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search courses..." />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredCatalog.map((course) => (
+              <Card key={course.id} className="hover:shadow-md transition-shadow">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-sm font-bold text-slate-800">{course.title}</h3>
+                    <Badge variant={categoryBadge[course.category]}>{course.category}</Badge>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                    <span>{course.duration}</span>
+                    <span>·</span>
+                    <span>{course.level}</span>
+                  </div>
+                  {enrolledIds.has(course.id) ? (
+                    <Button variant="outline" className="w-full cursor-pointer" disabled>
+                      <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-500" />Enrolled
+                    </Button>
+                  ) : (
+                    <Button className="w-full cursor-pointer" onClick={() => {
+                      setEnrolledIds((prev) => { const s = new Set(prev); s.add(course.id); return s; });
+                      toast({ title: "Enrolled successfully", description: `You have been enrolled in ${course.title}.`, variant: "success" });
+                    }}>
+                      <GraduationCap className="h-4 w-4 mr-2" />Enroll
                     </Button>
                   )}
                 </div>
@@ -99,37 +150,39 @@ export default function EmployeeTrainingPage() {
             ))}
           </div>
         </div>
+      )}
 
-        {/* Right Column: Certificates list */}
-        <div className="space-y-6">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <Award className="h-4.5 w-4.5 text-primary" />
-            <span>My Certifications</span>
-          </h3>
-
-          <div className="space-y-3">
+      {tab === "certs" && (
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {certificates.map((cert) => (
-              <Card key={cert.id} className="p-4 hover:shadow transition-shadow">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-xs text-slate-800 leading-snug">{cert.title}</h4>
-                    <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">{cert.type}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Issued: {cert.issueDate}</p>
+              <Card key={cert.id} className="border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50">
+                <div className="flex flex-col items-center text-center gap-3 py-2">
+                  <div className="h-14 w-14 rounded-full bg-amber-400 flex items-center justify-center shadow-md">
+                    <Award className="h-7 w-7 text-white" />
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0 text-slate-500 hover:bg-slate-100 hover:text-slate-900 rounded-lg cursor-pointer shrink-0"
-                    aria-label="Download certificate"
-                  >
-                    <Download className="h-4 w-4" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">{cert.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Issued: {cert.issued}</p>
+                    <p className="text-[10px] text-slate-400 font-mono mt-1">{cert.id}</p>
+                  </div>
+                  <Button size="sm" variant="outline" className="w-full cursor-pointer" onClick={() => toast({ title: "Certificate downloaded", variant: "success" })}>
+                    Download PDF
                   </Button>
                 </div>
               </Card>
             ))}
+
+            {/* Empty slot card */}
+            <div className="rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center p-8 text-center text-slate-400">
+              <div>
+                <Award className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p className="text-xs font-medium">Complete courses to earn certificates</p>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

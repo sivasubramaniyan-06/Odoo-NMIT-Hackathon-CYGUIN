@@ -1,270 +1,266 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
+import { StatCard } from "@/components/ui/StatCard";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { AreaChartWrapper, PieChartWrapper } from "@/components/ui/Charts";
-import { Modal } from "@/components/ui/Modal";
-import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { AreaChartWrapper, BarChartWrapper, PieChartWrapper } from "@/components/ui/Charts";
+import { SkeletonKPI } from "@/components/ui/Skeleton";
 import {
-  Users,
-  CalendarDays,
-  UserPlus,
-  FileCheck,
-  CreditCard,
-  Briefcase,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Plus,
+  Users, CalendarCheck, CalendarOff, CreditCard, Briefcase,
+  TrendingUp, Clock, CheckCircle, XCircle, ArrowRight, Plus,
+  UserPlus, Download, Activity,
 } from "lucide-react";
+import Link from "next/link";
 
-// Mock data for analytics
-const attendanceData = [
-  { name: "Mon", rate: 94 },
-  { name: "Tue", rate: 96 },
-  { name: "Wed", rate: 98 },
-  { name: "Thu", rate: 97 },
-  { name: "Fri", rate: 95 },
+const headcountData = [
+  { month: "Mar", total: 142, new: 8, resigned: 2 },
+  { month: "Apr", total: 148, new: 9, resigned: 3 },
+  { month: "May", total: 153, new: 7, resigned: 2 },
+  { month: "Jun", total: 158, new: 8, resigned: 3 },
+  { month: "Jul", total: 163, new: 6, resigned: 1 },
+  { month: "Aug", total: 167, new: 5, resigned: 1 },
 ];
 
-const departmentData = [
-  { name: "Engineering", value: 45 },
-  { name: "Product", value: 15 },
-  { name: "Sales", value: 20 },
-  { name: "Operations", value: 12 },
-  { name: "HR", value: 8 },
+const deptData = [
+  { name: "Engineering", count: 54 },
+  { name: "Design", count: 18 },
+  { name: "Sales", count: 32 },
+  { name: "Marketing", count: 21 },
+  { name: "HR", count: 12 },
+  { name: "Finance", count: 16 },
+  { name: "Operations", count: 14 },
+];
+
+const leaveTypeData = [
+  { name: "Annual", value: 42, color: "#6b21a8" },
+  { name: "Sick", value: 18, color: "#4f46e5" },
+  { name: "Unpaid", value: 6, color: "#e2e8f0" },
 ];
 
 const pendingLeaves = [
-  { id: "1", name: "Dianne Russell", type: "Sick Leave", date: "Aug 24 - Aug 25 (2 days)", status: "PENDING" },
-  { id: "2", name: "Guy Hawkins", type: "Annual Leave", date: "Sep 01 - Sep 07 (7 days)", status: "PENDING" },
-  { id: "3", name: "Kristin Watson", type: "Paternity Leave", date: "Aug 28 - Sep 11 (14 days)", status: "PENDING" },
+  { id: "1", name: "Maria Santos", type: "Annual Leave", dates: "Sep 1–7 (7 days)", dept: "Engineering" },
+  { id: "2", name: "James Liu", type: "Sick Leave", dates: "Aug 25 (1 day)", dept: "Design" },
+  { id: "3", name: "Priya Mehta", type: "Annual Leave", dates: "Sep 10–12 (3 days)", dept: "Sales" },
 ];
 
-export default function AdminDashboard() {
-  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+const recentActivities = [
+  { icon: UserPlus, color: "bg-emerald-100 text-emerald-600", text: "Sarah Kim joined Engineering team", time: "Today 9:30 AM" },
+  { icon: CheckCircle, color: "bg-blue-100 text-blue-600", text: "Performance review cycle Q3 opened", time: "Today 8:00 AM" },
+  { icon: CreditCard, color: "bg-purple-100 text-purple-600", text: "August payroll processed — $412,850", time: "Yesterday" },
+  { icon: Briefcase, color: "bg-amber-100 text-amber-600", text: "3 new candidates shortlisted for Senior Dev", time: "Yesterday" },
+  { icon: XCircle, color: "bg-rose-100 text-rose-600", text: "Leave denied: Mark Lee — conflicting schedule", time: "Aug 20" },
+];
+
+const topPerformers = [
+  { name: "Jordan Kim", role: "Lead Engineer", score: 4.9, dept: "Engineering" },
+  { name: "Ana Patel", role: "Product Designer", score: 4.8, dept: "Design" },
+  { name: "Chen Wei", role: "Sales Director", score: 4.7, dept: "Sales" },
+];
+
+export default function AdminDashboardPage() {
+  const [loading] = useState(false);
+
+  if (loading) return <div className="p-6"><SkeletonKPI /></div>;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-            Welcome back, Administrator
-          </h1>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Good morning, Alex 👋</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Here is your people operations summary for today.
+            Here's what's happening at Acme Corp — {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button onClick={() => setIsQuickAddOpen(true)} className="flex items-center gap-2 cursor-pointer">
-            <Plus className="h-4 w-4" />
-            <span>Add Employee</span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="flex items-center gap-1.5 cursor-pointer">
+            <Download className="h-4 w-4" />
+            <span>Export Report</span>
           </Button>
+          <Link href="/admin/employees">
+            <Button size="sm" className="flex items-center gap-1.5 cursor-pointer">
+              <Plus className="h-4 w-4" />
+              <span>Add Employee</span>
+            </Button>
+          </Link>
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-purple-100 text-primary rounded-xl">
-            <Users className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Headcount</p>
-            <h3 className="text-2xl font-bold text-slate-950 mt-1">1,424</h3>
-            <p className="text-[10px] text-emerald-600 font-semibold mt-1">+12% MoM growth</p>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-100 text-secondary rounded-xl">
-            <CalendarDays className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Leaves</p>
-            <h3 className="text-2xl font-bold text-slate-950 mt-1">34</h3>
-            <p className="text-[10px] text-amber-600 font-semibold mt-1">4 pending approvals</p>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-sky-100 text-sky-700 rounded-xl">
-            <Briefcase className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Open Positions</p>
-            <h3 className="text-2xl font-bold text-slate-950 mt-1">18</h3>
-            <p className="text-[10px] text-indigo-600 font-semibold mt-1">42 active applicants</p>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-emerald-100 text-emerald-700 rounded-xl">
-            <CreditCard className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Disbursed (Month)</p>
-            <h3 className="text-2xl font-bold text-slate-950 mt-1">$412,850</h3>
-            <p className="text-[10px] text-slate-500 font-semibold mt-1">Pay run completed Aug 20</p>
-          </div>
-        </Card>
+      {/* KPI Row */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatCard title="Total Employees" value="167" icon={Users} trend={{ value: 2.4, label: "+4 this month" }} iconBg="bg-purple-50" iconColor="text-primary" />
+        <StatCard title="Attendance Rate" value="96.2%" icon={CalendarCheck} trend={{ value: 0.8 }} iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+        <StatCard title="Pending Leaves" value="5" icon={CalendarOff} trend={{ value: -12, label: "vs last week" }} iconBg="bg-amber-50" iconColor="text-amber-600" />
+        <StatCard title="Open Positions" value="12" icon={Briefcase} trend={{ value: 20 }} iconBg="bg-indigo-50" iconColor="text-secondary" />
+        <StatCard title="Payroll (Aug)" value="$412K" icon={CreditCard} trend={{ value: 1.1 }} iconBg="bg-sky-50" iconColor="text-sky-600" />
+        <StatCard title="Avg Performance" value="4.4 / 5" icon={TrendingUp} trend={{ value: 3.2 }} iconBg="bg-pink-50" iconColor="text-pink-600" />
       </div>
 
-      {/* Analytics Charts Grid */}
+      {/* Charts Row */}
       <div className="grid gap-6 lg:grid-cols-3">
+        {/* Headcount Trend */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Attendance Trends</CardTitle>
-            <CardDescription>Daily attendance rate tracker (%) for the current week</CardDescription>
+            <CardTitle>Headcount Trend</CardTitle>
+            <CardDescription>Monthly employee growth — New hires vs. resignations</CardDescription>
           </CardHeader>
           <CardContent>
-            <AreaChartWrapper data={attendanceData} dataKey="rate" strokeColor="#6b21a8" height={280} />
+            <AreaChartWrapper
+              data={headcountData}
+              xKey="month"
+              areas={[
+                { key: "total", color: "#6b21a8", label: "Total" },
+                { key: "new", color: "#4f46e5", label: "New Hires" },
+              ]}
+              height={200}
+            />
           </CardContent>
         </Card>
 
+        {/* Leave Type Breakdown */}
         <Card>
           <CardHeader>
-            <CardTitle>Department Headcounts</CardTitle>
-            <CardDescription>Distribution of active employees by business units</CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
-            <PieChartWrapper data={departmentData} height={280} />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Operations Tables & Feeds */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Pending approvals table */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Pending Leave Requests</CardTitle>
-              <CardDescription>Require review and approval from administration</CardDescription>
-            </div>
-            <Link href="/admin/leave" className="text-xs font-semibold text-primary hover:underline">
-              View All
-            </Link>
+            <CardTitle>Leave Distribution</CardTitle>
+            <CardDescription>Active leave requests by type</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-slate-100 text-slate-400 font-semibold text-xs uppercase">
-                    <th className="pb-3">Employee</th>
-                    <th className="pb-3">Type</th>
-                    <th className="pb-3">Duration</th>
-                    <th className="pb-3">Status</th>
-                    <th className="pb-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {pendingLeaves.map((leave) => (
-                    <tr key={leave.id} className="hover:bg-slate-50/50">
-                      <td className="py-3.5 font-semibold text-slate-700">{leave.name}</td>
-                      <td className="py-3.5 text-slate-500">{leave.type}</td>
-                      <td className="py-3.5 text-slate-500">{leave.date}</td>
-                      <td className="py-3.5">
-                        <Badge variant="warning">{leave.status}</Badge>
-                      </td>
-                      <td className="py-3.5 text-right space-x-2">
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer">
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer">
-                          <XCircle className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <PieChartWrapper
+              data={leaveTypeData}
+              height={180}
+            />
+            <div className="space-y-1.5 mt-3">
+              {leaveTypeData.map((d) => (
+                <div key={d.name} className="flex justify-between text-xs">
+                  <span className="flex items-center gap-1.5 text-slate-500">
+                    <span className="h-2 w-2 rounded-full" style={{ background: d.color }} />
+                    {d.name}
+                  </span>
+                  <span className="font-semibold text-slate-700">{d.value} days</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Department Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Department Distribution</CardTitle>
+          <CardDescription>Employee headcount across all departments</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BarChartWrapper
+            data={deptData}
+            xKey="name"
+            bars={[{ key: "count", color: "#6b21a8", label: "Employees" }]}
+            height={200}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Bottom Row: Pending Leaves + Activities + Top Performers */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Pending Leave Approvals */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle>Pending Approvals</CardTitle>
+              <CardDescription>Leave requests awaiting your review</CardDescription>
+            </div>
+            <Badge variant="warning">{pendingLeaves.length} pending</Badge>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pendingLeaves.map((leave) => (
+              <div key={leave.id} className="flex items-start justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-primary/30 transition-colors">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 truncate">{leave.name}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{leave.type} · {leave.dept}</p>
+                  <p className="text-[10px] text-primary font-semibold mt-1">{leave.dates}</p>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button className="p-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors cursor-pointer">
+                    <CheckCircle className="h-3.5 w-3.5" />
+                  </button>
+                  <button className="p-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors cursor-pointer">
+                    <XCircle className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            <Link href="/admin/leave">
+              <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-1.5 mt-1 cursor-pointer">
+                <span>View all requests</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Latest HR events and system updates</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentActivities.map((act, i) => {
+                const Icon = act.icon;
+                return (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className={`rounded-lg p-1.5 shrink-0 ${act.color}`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-slate-700 font-medium leading-snug">{act.text}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{act.time}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
-        {/* Quick Actions & Recent Activities panel */}
-        <Card className="space-y-6">
-          <div>
-            <CardHeader className="p-0 pb-3">
-              <CardTitle>Recent Activity Feed</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 space-y-4">
-              <div className="flex gap-3 text-xs">
-                <Clock className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-slate-700">Sarah Connor clocked in 15 mins late</p>
-                  <p className="text-slate-400 mt-0.5">Today at 9:15 AM</p>
+        {/* Top Performers */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Performers</CardTitle>
+            <CardDescription>Highest rated employees this quarter</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {topPerformers.map((emp, i) => (
+              <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors">
+                <div className="relative shrink-0">
+                  <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white text-xs font-bold">
+                    {emp.name.split(" ").map((n) => n[0]).join("")}
+                  </div>
+                  <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center">
+                    #{i + 1}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-800">{emp.name}</p>
+                  <p className="text-[10px] text-slate-500">{emp.role}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs font-bold text-primary">{emp.score}</p>
+                  <p className="text-[9px] text-slate-400">/ 5.0</p>
                 </div>
               </div>
-              <div className="flex gap-3 text-xs">
-                <FileCheck className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-slate-700">HR Team approved Sick Leave request</p>
-                  <p className="text-slate-400 mt-0.5">Yesterday at 4:32 PM</p>
-                </div>
-              </div>
-              <div className="flex gap-3 text-xs">
-                <UserPlus className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-slate-700">New Employee onboarded (Marcus Miller)</p>
-                  <p className="text-slate-400 mt-0.5">Aug 20 at 11:20 AM</p>
-                </div>
-              </div>
-            </CardContent>
-          </div>
-
-          <div className="border-t border-slate-100 pt-4">
-            <CardTitle className="text-sm font-bold mb-3">Admin Quick Operations</CardTitle>
-            <div className="grid grid-cols-2 gap-2">
-              <Link href="/admin/employees" className="flex flex-col items-center justify-center p-3 border border-slate-100 hover:border-primary/30 hover:bg-primary/5 rounded-xl transition-all text-center">
-                <UserPlus className="h-5 w-5 text-primary mb-1" />
-                <span className="text-[10px] font-bold text-slate-700">Add Staff</span>
-              </Link>
-              <Link href="/admin/payroll" className="flex flex-col items-center justify-center p-3 border border-slate-100 hover:border-primary/30 hover:bg-primary/5 rounded-xl transition-all text-center">
-                <CreditCard className="h-5 w-5 text-primary mb-1" />
-                <span className="text-[10px] font-bold text-slate-700">Run Payroll</span>
-              </Link>
-              <Link href="/admin/recruitment" className="flex flex-col items-center justify-center p-3 border border-slate-100 hover:border-primary/30 hover:bg-primary/5 rounded-xl transition-all text-center">
-                <Briefcase className="h-5 w-5 text-primary mb-1" />
-                <span className="text-[10px] font-bold text-slate-700">Hire Candidate</span>
-              </Link>
-              <Link href="/admin/settings" className="flex flex-col items-center justify-center p-3 border border-slate-100 hover:border-primary/30 hover:bg-primary/5 rounded-xl transition-all text-center">
-                <TrendingUp className="h-5 w-5 text-primary mb-1" />
-                <span className="text-[10px] font-bold text-slate-700">Config Shifts</span>
-              </Link>
-            </div>
-          </div>
+            ))}
+            <Link href="/admin/performance">
+              <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-1.5 cursor-pointer">
+                <Activity className="h-3.5 w-3.5" />
+                <span>View All Reviews</span>
+              </Button>
+            </Link>
+          </CardContent>
         </Card>
       </div>
-
-      {/* Quick Add Employee Modal */}
-      <Modal isOpen={isQuickAddOpen} onClose={() => setIsQuickAddOpen(false)} title="Quick Add Employee">
-        <form onSubmit={(e) => { e.preventDefault(); setIsQuickAddOpen(false); }} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="First Name" placeholder="John" required />
-            <Input label="Last Name" placeholder="Doe" required />
-          </div>
-          <Input label="Email Address" type="email" placeholder="john.doe@company.com" required />
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Department" placeholder="Engineering" required />
-            <Input label="Designation" placeholder="Senior Engineer" required />
-          </div>
-          <div className="flex justify-end gap-3 border-t pt-4">
-            <Button type="button" variant="outline" onClick={() => setIsQuickAddOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              Save Profile
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

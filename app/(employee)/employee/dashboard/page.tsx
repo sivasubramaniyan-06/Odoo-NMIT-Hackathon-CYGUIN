@@ -1,194 +1,206 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import Link from "next/link";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import React, { useState } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { AreaChartWrapper } from "@/components/ui/Charts";
+import { Button } from "@/components/ui/Button";
+import { Progress } from "@/components/ui/Progress";
+import { StatCard } from "@/components/ui/StatCard";
+import Link from "next/link";
 import {
-  Clock,
-  Calendar,
-  BookOpen,
-  CreditCard,
-  User,
-  LogOut,
-  Play,
-  ArrowRight,
-  TrendingUp,
+  CalendarCheck, CalendarOff, CreditCard, TrendingUp, Clock,
+  ArrowRight, Megaphone, CheckSquare, GraduationCap, Star,
 } from "lucide-react";
 
-// Mock weekly hours chart
-const weeklyHoursData = [
-  { name: "Mon", hours: 8.5 },
-  { name: "Tue", hours: 8.8 },
-  { name: "Wed", hours: 9.0 },
-  { name: "Thu", hours: 8.2 },
-  { name: "Fri", hours: 7.8 },
+const quickActions = [
+  { label: "Clock In", href: "/employee/attendance", icon: CalendarCheck, color: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200" },
+  { label: "Apply Leave", href: "/employee/leave", icon: CalendarOff, color: "bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200" },
+  { label: "View Payslip", href: "/employee/payroll", icon: CreditCard, color: "bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200" },
+  { label: "My Goals", href: "/employee/performance", icon: TrendingUp, color: "bg-sky-50 text-sky-700 hover:bg-sky-100 border-sky-200" },
 ];
 
-export default function EmployeeDashboard() {
-  const [isClockedIn, setIsClockedIn] = useState(false);
-  const [clockTime, setClockTime] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState("");
+const announcements = [
+  { title: "All Hands Meeting — September 3", date: "Aug 22", category: "Company", unread: true },
+  { title: "Q3 Performance Review Cycle Opens", date: "Aug 20", category: "HR", unread: true },
+  { title: "New WFH Policy Effective Sep 1", date: "Aug 18", category: "Policy", unread: false },
+];
 
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
-    return () => clearInterval(interval);
-  }, []);
+const myGoals = [
+  { title: "Complete design tokens migration", progress: 90, due: "Sep 30" },
+  { title: "Mentor 2 junior designers", progress: 100, due: "Done" },
+  { title: "Achieve INP < 200ms optimization", progress: 45, due: "Oct 15" },
+];
 
-  const handleClockToggle = () => {
-    if (isClockedIn) {
-      setIsClockedIn(false);
-      setClockTime(null);
-    } else {
-      setIsClockedIn(true);
-      const now = new Date();
-      setClockTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    }
-  };
+const myTasks = [
+  { title: "Submit Q3 self-review form", due: "Aug 31", priority: "High" },
+  { title: "Update portfolio in profile", due: "Sep 5", priority: "Low" },
+];
+
+const leaveBalances = [
+  { type: "Annual", remaining: 14, total: 20, color: "text-primary" },
+  { type: "Sick", remaining: 5, total: 8, color: "text-emerald-600" },
+  { type: "Unpaid", remaining: 3, total: 5, color: "text-amber-600" },
+];
+
+const priorityColor: Record<string, string> = {
+  High: "bg-rose-100 text-rose-700",
+  Medium: "bg-amber-100 text-amber-700",
+  Low: "bg-slate-100 text-slate-600",
+};
+
+export default function EmployeeDashboardPage() {
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Greeting Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-            Good morning, Alex Rivera
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Designation: <span className="font-semibold text-slate-700">Senior UI Designer</span> • Team: <span className="font-semibold text-slate-700">Product Team</span>
-          </p>
+    <div className="p-4 md:p-6 space-y-6">
+      {/* Greeting Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-secondary to-indigo-400 p-6 text-white shadow-lg">
+        <div className="relative z-10">
+          <h1 className="text-xl font-bold sm:text-2xl">{greeting}, Alex 👋</h1>
+          <p className="text-sm text-white/80 mt-1">{today}</p>
+          <div className="flex items-center gap-2 mt-3">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs text-white/90 font-medium">You checked in today at 8:50 AM · 9h 05m worked</span>
+          </div>
         </div>
-        <div className="text-right hidden sm:block">
-          <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Today's Date</p>
-          <p className="text-sm font-bold text-slate-700 mt-1">August 22, 2026</p>
-        </div>
+        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5" />
+        <div className="absolute -right-4 bottom-0 h-24 w-24 rounded-full bg-white/10" />
       </div>
 
+      {/* Quick Actions */}
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+        {quickActions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Link key={action.label} href={action.href}>
+              <button className={`w-full flex flex-col items-center gap-2 rounded-xl border p-4 text-xs font-bold transition-all cursor-pointer ${action.color}`}>
+                <Icon className="h-5 w-5" />
+                {action.label}
+              </button>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Middle Row */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Columns: Grid components */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Shift Tracker Clock Box */}
-          <Card className="bg-gradient-to-tr from-purple-950 via-indigo-900 to-purple-900 text-white border-0 shadow-md">
-            <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="space-y-2 text-center md:text-left">
-                <p className="text-xs text-purple-200/80 font-bold uppercase tracking-wider">Shift Tracker</p>
-                <h3 className="text-3xl font-extrabold">{currentTime}</h3>
-                <p className="text-xs text-purple-200/70">
-                  {isClockedIn
-                    ? `Clocked in at ${clockTime} (Active Shift)`
-                    : "Not clocked in today. Please register check-in."}
-                </p>
-              </div>
-              <Button
-                onClick={handleClockToggle}
-                className={`w-full md:w-auto h-11 px-6 font-bold shadow-md cursor-pointer transition-all ${
-                  isClockedIn
-                    ? "bg-rose-600 hover:bg-rose-700 text-white"
-                    : "bg-white hover:bg-slate-50 text-slate-900"
-                }`}
-              >
-                {isClockedIn ? "Clock Out" : "Clock In"}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Weekly attendance analytic */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Hours Logged (Week)</CardTitle>
-              <CardDescription>Track of daily working hours for current payroll period</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AreaChartWrapper data={weeklyHoursData} dataKey="hours" strokeColor="#4f46e5" height={240} />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar widgets */}
-        <div className="space-y-6">
-          {/* Leave Balances */}
-          <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-bold uppercase tracking-wide text-slate-500">Leave Balance</CardTitle>
-              <Link href="/employee/leave" className="text-xs font-semibold text-primary hover:underline">
-                Request Leave
-              </Link>
-            </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-2">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
-                <p className="text-xs text-slate-400 font-bold">Annual</p>
-                <p className="text-lg font-extrabold text-slate-800 mt-1">14</p>
-                <p className="text-[9px] text-slate-400 mt-1">days left</p>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
-                <p className="text-xs text-slate-400 font-bold">Sick</p>
-                <p className="text-lg font-extrabold text-slate-800 mt-1">5</p>
-                <p className="text-[9px] text-slate-400 mt-1">days left</p>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
-                <p className="text-xs text-slate-400 font-bold">Unpaid</p>
-                <p className="text-lg font-extrabold text-slate-800 mt-1">0</p>
-                <p className="text-[9px] text-slate-400 mt-1">days left</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Assigned Course tracking */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-bold uppercase tracking-wide text-slate-500">Ongoing Lessons</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="p-3.5 border border-slate-100 rounded-xl bg-slate-50/50 space-y-3">
-                <div className="flex items-center justify-between">
-                  <Badge variant="default" className="text-[9px] px-2 py-0.5">Compliance</Badge>
-                  <span className="text-[10px] text-slate-400 font-semibold">1h left</span>
+        {/* Leave Balances */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-sm">Leave Balances</CardTitle>
+            <Link href="/employee/leave"><span className="text-xs text-primary hover:underline font-semibold cursor-pointer flex items-center gap-1">Apply <ArrowRight className="h-3 w-3" /></span></Link>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {leaveBalances.map((lb) => (
+              <div key={lb.type}>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="font-semibold text-slate-600">{lb.type} Leave</span>
+                  <span className={`font-bold ${lb.color}`}>{lb.remaining} / {lb.total} days</span>
                 </div>
-                <div>
-                  <h4 className="font-bold text-xs text-slate-800">Information Security Guidelines</h4>
-                  <p className="text-[10px] text-slate-400 mt-1">Due: Aug 28, 2026</p>
-                </div>
-                <Link
-                  href="/employee/training"
-                  className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold bg-white border border-border hover:border-primary/40 hover:text-primary transition-all rounded-lg"
-                >
-                  <Play className="h-3 w-3 fill-current" />
-                  <span>Resume Course</span>
-                </Link>
+                <Progress value={lb.remaining} max={lb.total} size="sm" />
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </CardContent>
+        </Card>
 
-          {/* Self-service Quick Links */}
-          <Card className="p-4">
-            <CardTitle className="text-sm font-bold mb-3">Self Service Operations</CardTitle>
-            <div className="grid grid-cols-2 gap-2 text-center text-xs">
-              <Link href="/employee/payroll" className="p-3 border border-slate-100 hover:border-primary/30 hover:bg-primary/5 rounded-xl transition-all flex flex-col items-center">
-                <CreditCard className="h-5 w-5 text-primary mb-1" />
-                <span className="text-[10px] font-bold text-slate-700">View Payslip</span>
-              </Link>
-              <Link href="/employee/attendance" className="p-3 border border-slate-100 hover:border-primary/30 hover:bg-primary/5 rounded-xl transition-all flex flex-col items-center">
-                <Clock className="h-5 w-5 text-primary mb-1" />
-                <span className="text-[10px] font-bold text-slate-700">Clock Log</span>
-              </Link>
-              <Link href="/employee/profile" className="p-3 border border-slate-100 hover:border-primary/30 hover:bg-primary/5 rounded-xl transition-all flex flex-col items-center">
-                <User className="h-5 w-5 text-primary mb-1" />
-                <span className="text-[10px] font-bold text-slate-700">My Profile</span>
-              </Link>
-              <Link href="/employee/notifications" className="p-3 border border-slate-100 hover:border-primary/30 hover:bg-primary/5 rounded-xl transition-all flex flex-col items-center">
-                <Calendar className="h-5 w-5 text-primary mb-1" />
-                <span className="text-[10px] font-bold text-slate-700">Alert Feeds</span>
-              </Link>
-            </div>
-          </Card>
-        </div>
+        {/* My Goals */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-sm">My Goals</CardTitle>
+            <Link href="/employee/performance"><span className="text-xs text-primary hover:underline font-semibold cursor-pointer flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></span></Link>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {myGoals.map((goal) => (
+              <div key={goal.title}>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="font-medium text-slate-700 flex-1 pr-2">{goal.title}</span>
+                  <span className={`font-bold shrink-0 ${goal.progress === 100 ? "text-emerald-600" : "text-primary"}`}>{goal.progress}%</span>
+                </div>
+                <Progress value={goal.progress} size="sm" variant={goal.progress === 100 ? "success" : "default"} />
+                <p className="text-[10px] text-slate-400 mt-0.5">Due: {goal.due}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* My Tasks */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-sm">My Tasks</CardTitle>
+            <Link href="/employee/tasks"><span className="text-xs text-primary hover:underline font-semibold cursor-pointer flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></span></Link>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {myTasks.map((task) => (
+              <div key={task.title} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <CheckSquare className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-slate-800">{task.title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Clock className="h-3 w-3 text-slate-400" />
+                    <span className="text-[10px] text-slate-400">Due {task.due}</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${priorityColor[task.priority]}`}>{task.priority}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <Link href="/employee/tasks">
+              <Button variant="outline" size="sm" className="w-full cursor-pointer">+ Add Task</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Announcements + Training */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Announcements */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" />Announcements</CardTitle>
+            <Link href="/employee/announcements"><span className="text-xs text-primary hover:underline font-semibold cursor-pointer">See all</span></Link>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {announcements.map((ann, i) => (
+              <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border transition-colors cursor-pointer hover:border-primary/30 ${ann.unread ? "bg-purple-50/40 border-purple-100" : "bg-slate-50 border-slate-100"}`}>
+                {ann.unread && <span className="h-2 w-2 rounded-full bg-primary mt-1.5 shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-slate-800 truncate">{ann.title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="secondary" className="text-[9px]">{ann.category}</Badge>
+                    <span className="text-[10px] text-slate-400">{ann.date}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Training Progress */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-sm flex items-center gap-2"><GraduationCap className="h-4 w-4 text-secondary" />Active Training</CardTitle>
+            <Link href="/employee/training"><span className="text-xs text-primary hover:underline font-semibold cursor-pointer">View all</span></Link>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[
+              { name: "Code of Conduct 2026", progress: 100, lessons: "6/6", cert: true },
+              { name: "Security Awareness Training", progress: 60, lessons: "3/5", cert: false },
+              { name: "Advanced React Patterns", progress: 30, lessons: "2/7", cert: false },
+            ].map((course) => (
+              <div key={course.name} className="space-y-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-medium text-slate-700 flex items-center gap-1.5">
+                    {course.name}
+                    {course.cert && <Star className="h-3 w-3 text-amber-500" />}
+                  </span>
+                  <span className="text-slate-400 text-[10px]">{course.lessons} lessons</span>
+                </div>
+                <Progress value={course.progress} size="sm" variant={course.progress === 100 ? "success" : "default"} showValue />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
